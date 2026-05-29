@@ -32,4 +32,11 @@ pub fn main() void{
         sum += if (i%2==0) i else continue;
         std.debug.print("VAL sum:{d}\n",.{sum}); 
     }
+
+    const string = [_]u8{'h','l','l','f'};
+    
+    for (string,0..) |char,index|{
+        std.debug.print("VAL i:{d}\n",.{index}); 
+        std.debug.print("VAL character:{c}\n",.{char}); 
+    }
 }
