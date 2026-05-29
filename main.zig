@@ -25,10 +25,11 @@ pub fn main() void{
     if_true_inc += if (eval_flag) 1 else 0;
     std.debug.print("VAL if_true_inc: {d}\n",.{if_true_inc});
 
-    var i:i32 = 0;
+    var i:u32 = 0;
+    var sum = i;
     
-
     while(i <= 100) : (i+=3){
-       std.debug.print("VAL i:{d}\n",.{i}); 
+        sum += if (i%2==0) i else continue;
+        std.debug.print("VAL sum:{d}\n",.{sum}); 
     }
 }
