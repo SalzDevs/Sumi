@@ -4,6 +4,11 @@ fn addFive(x: u32) u32{
     return x+5;
 }
 
+fn fibonacci(n: u16) u16{
+    if (n==0 or n==1) return n;
+    return fibonacci(n-1) + fibonacci(n-2);
+}
+
 pub fn main() void{
     std.debug.print("Hello, {s}\n",.{"World"});
     
@@ -44,6 +49,7 @@ pub fn main() void{
         std.debug.print("VAL character:{c}\n",.{char}); 
     }
     
-    const y = 1000;
-    std.debug.print("VAL add_five(Y):{d}\n",.{addFive(y)});
+    const y = 10;
+    std.debug.print("VAL add_five(y):{d}\n",.{addFive(y)});
+    std.debug.print("Val fibonacci(y):{d}\n",.{fibonacci(y)});
 }
