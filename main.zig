@@ -1,6 +1,6 @@
 const std = @import("std");
 
-fn add_five(x: u32) u32{
+fn addFive(x: u32) u32{
     return x+5;
 }
 
@@ -45,5 +45,5 @@ pub fn main() void{
     }
     
     const y = 1000;
-    std.debug.print("VAL add_five(Y):{d}\n",.{add_five(y)});
+    std.debug.print("VAL add_five(Y):{d}\n",.{addFive(y)});
 }
