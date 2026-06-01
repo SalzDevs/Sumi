@@ -21,6 +21,8 @@ function render_window(){
   r.SetTargetFPS(60);
 
   while(!WindowShouldClose()){
+    if (r.IsKeyDown(r.KEY_RIGHT)) m.cursor.x+=1;
+    if (r.IsKeyDown(r.KEY_DOWN)) m.cursor.y+=1;
     r.BeginDrawing();
     r.ClearBackground(r.RAYWHITE);
     r.DrawRectangle(m.cursor.x,m.cursor.y,m.cursor.width,m.cursor.height,r.GREEN);
