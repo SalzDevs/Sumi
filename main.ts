@@ -19,14 +19,14 @@ interface model{
 
 //TODO: Refactor this part (validate_next_position should only take the cursor)
 function validate_next_position(next_x:number, next_y:number,c:cursor_type) :boolean{
-  return (next_x<0 || next_x>screenWidth-c.width || next_y<0||next_y>screenHeight-c.height);
+  return (next_x>=0 && next_x<=screenWidth-c.width && next_y>=0 && next_y<=screenHeight-c.height);
 }
 
 function render_window(){
   const m:model = {cursor: {x:0,y:0,width:10,height:20}, char_buffer: ""};
   const q = new Queue<string>();
 
-  r. InitWindow(screenWidth,screenHeight, "Sumi");
+  r.InitWindow(screenWidth,screenHeight, "Sumi");
   r.SetTargetFPS(60);
 
   while(!WindowShouldClose()){
