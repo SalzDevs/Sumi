@@ -15,15 +15,15 @@ function render_window(){
   while(!WindowShouldClose()){
     r.BeginDrawing();
     r.ClearBackground(r.RAYWHITE);
-    r.DrawText("Congrats! You created your first window!", 190, 200, 20, r.LIGHTGRAY);
+    r.DrawRectangle(0,0,10,20,r.GREEN);
     r.EndDrawing();
   }
   r.CloseWindow();
 }
 
 function main(){
-  const m:model = {cursor: 1, char_buffer: "hello my guy"};
-  console.log("model:",m);
+  const m:model = {cursor: 0, char_buffer: ""};
+  render_window();
 }
 
 main();
