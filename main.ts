@@ -3,6 +3,8 @@ import r, { InitWindow, SetTargetFPS, WindowShouldClose } from 'raylib';
 interface cursor_type{
   x:number
   y:number
+  width:number
+  height:number
 }
 
 interface model{
@@ -13,7 +15,7 @@ interface model{
 function render_window(){
   const screenWidth = 800;
   const screenHeight = 400;
-  const m:model = {cursor: {x:0,y:0}, char_buffer: ""};
+  const m:model = {cursor: {x:0,y:0,width:10,height:20}, char_buffer: ""};
 
   r. InitWindow(screenWidth,screenHeight, "Sumi");
   r.SetTargetFPS(60);
@@ -21,7 +23,7 @@ function render_window(){
   while(!WindowShouldClose()){
     r.BeginDrawing();
     r.ClearBackground(r.RAYWHITE);
-    r.DrawRectangle(m.cursor.x,m.cursor.y,10,20,r.GREEN);
+    r.DrawRectangle(m.cursor.x,m.cursor.y,m.cursor.width,m.cursor.height,r.GREEN);
     r.EndDrawing();
   }
   r.CloseWindow();
