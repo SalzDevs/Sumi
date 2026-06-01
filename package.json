@@ -1,0 +1,24 @@
+{
+  "name": "sumi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SalzDevs/Sumi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/SalzDevs/Sumi/issues"
+  },
+  "homepage": "https://github.com/SalzDevs/Sumi#readme",
+  "dependencies": {
+    "raylib": "^0.14.0"
+  }
+}
