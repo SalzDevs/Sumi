@@ -16,7 +16,7 @@ interface model{
   char_buffer:string 
 }
 
-function validate_next_position(next_x:number, next_y:number,c:cursor) :boolean{
+function validate_next_position(next_x:number, next_y:number,c:cursor_type) :boolean{
   if (next_x<0 || next_x>screenWidth-c.width || next_y<0||next_y>screenHeight-c.height) return false;
   console.log("x:  y:",next_x,next_y);
   return true; 
