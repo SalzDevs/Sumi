@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/SalzDevs/Sumi#readme",
   "dependencies": {
+    "@datastructures-js/queue": "^4.3.0",
     "raylib": "^0.14.0"
   }
 }
