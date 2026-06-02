@@ -3,6 +3,7 @@ import r, { InitWindow, SetTargetFPS, WindowShouldClose } from 'raylib';
 const screenWidth = 800;
 const screenHeight = 400;
 
+const fontSize = 20;
 
 interface cursor_type{
   x:number
@@ -57,7 +58,7 @@ function render_window(){
       if (m.cursor.x + 6 < screenWidth - m.cursor.width) m.cursor.x += 6;
       else{
         if (m.cursor.y + 1 < screenHeight - m.cursor.height){ 
-          m.cursor.y += 20;
+          m.cursor.y += fontSize;
           m.cursor.x = 0;
         }  
       }
@@ -65,7 +66,7 @@ function render_window(){
 
     r.BeginDrawing();
     for (const elem of runes){
-      r.DrawText(elem.char,elem.x,elem.y,20,r.RED);
+      r.DrawText(elem.char,elem.x,elem.y,fontSize,r.RED);
     }
     r.ClearBackground(r.RAYWHITE);
     r.DrawRectangle(m.cursor.x,m.cursor.y,m.cursor.width,m.cursor.height,r.GREEN);
