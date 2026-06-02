@@ -1,80 +1,74 @@
 extern "C" {
   #include "raylib.h"
 }
-
-#include <vector>
+#include <string>
 
 const int screenWidth = 800;
 const int screenHeight = 400;
 const int fontSize = 20;
-const int spacing = 2;
-
-struct Cursor {
-  int x, y;
-  int width, height;
-};
-
-struct Rune {
-  char c;
-  int x, y;
-};
-
-bool in_bounds(const Cursor& cursor) {
-  return (cursor.x >= 0 &&
-          cursor.x <= screenWidth - cursor.width &&
-          cursor.y >= 0 &&
-          cursor.y <= screenHeight - cursor.height);
-}
-
-void try_move_if(int key, Cursor& cursor, int dx, int dy) {
-  if (!IsKeyDown(key)) return;
-  cursor.x += dx;
-  cursor.y += dy;
-  if (!in_bounds(cursor)) {
-    cursor.x -= dx;
-    cursor.y -= dy;
-  }
-}
+const int spacing = 1;
 
 int main() {
-  Cursor cursor = {0, 0, 10, 20};
-  std::vector<Rune> runes;
+  std::string text;
+  int cursorIndex = 0;
 
   InitWindow(screenWidth, screenHeight, "Sumi");
   SetTargetFPS(60);
   
   Font font = LoadFont("/tmp/JetBrainsMono.ttf");
-  
+
   while (!WindowShouldClose()) {
-    try_move_if(KEY_RIGHT, cursor, 1, 0);
-    try_move_if(KEY_DOWN,  cursor, 0, 1);
-    try_move_if(KEY_LEFT,  cursor, -1, 0);
-    try_move_if(KEY_UP,    cursor, 0, -1);
+
+    if (IsKeyPressed(KEY_RIGHT) && cursorIndex < (int)text.size()) cursorIndex++;
+    if (IsKeyPressed(KEY_LEFT)  && cursorIndex > 0)                  cursorIndex--;
+
+    if (IsKeyPressed(KEY_BACKSPACE) && cursorIndex > 0) {
+      text.erase(cursorIndex - 1, 1);
+      cursorIndex--;
+    }
 
     char c = GetCharPressed();
     if (c != 0) {
-      runes.push_back({c, cursor.x, cursor.y});
-      Vector2 glyphSize = MeasureTextEx(font,TextFormat("%c",c),fontSize,spacing);
-      if (cursor.x + 1 < screenWidth - cursor.width) {
-        cursor.x += glyphSize.x;
-      } else {
-        if (cursor.y + fontSize < screenHeight - cursor.height) {
-          cursor.y += fontSize;
-          cursor.x = 0;
-        }
-      }
+      text.insert(text.begin() + cursorIndex, c);
+      cursorIndex++;
     }
+
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    for (auto& rn : runes) {
-      DrawTextEx(font,TextFormat("%c", rn.c), {static_cast<float>(rn.x), static_cast<float>(rn.y)}, fontSize,4, RED);
+    float penX = 0;
+    float penY = 0;
+    float cursorX = 0, cursorY = 0;
+
+    for (int i = 0; i < (int)text.size(); i++) {
+      if (i == cursorIndex) {
+        cursorX = penX;
+        cursorY = penY;
+      }
+
+      const char* glyph = TextFormat("%c", text[i]);
+      float glyphW = MeasureTextEx(font, glyph, fontSize, spacing).x;
+
+      if (penX + glyphW > screenWidth) {
+        penX = 0;
+        penY += fontSize;
+      }
+
+      DrawTextEx(font, glyph, {penX, penY}, fontSize, spacing, RED);
+      penX += glyphW;
     }
 
-    DrawRectangle(cursor.x, cursor.y, cursor.width, cursor.height, GREEN);
+    if (cursorIndex == (int)text.size()) {
+      cursorX = penX;
+      cursorY = penY;
+    }
+
+    DrawRectangle(cursorX, cursorY, 2, fontSize, GREEN);
+
     EndDrawing();
   }
+
   UnloadFont(font);
   CloseWindow();
   return 0;
