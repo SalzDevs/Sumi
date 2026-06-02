@@ -1,5 +1,4 @@
 import r, { InitWindow, SetTargetFPS, WindowShouldClose } from 'raylib';
-import {Queue} from '@datastructures-js/queue';
 
 const screenWidth = 800;
 const screenHeight = 400;
@@ -15,6 +14,12 @@ interface cursor_type{
 interface model{
   cursor:cursor_type
   char_buffer:string 
+}
+
+interface rune{
+  char:string
+  x:number
+  y:number
 }
 
 function in_bounds(cursor: cursor_type) :boolean{
@@ -34,10 +39,11 @@ function try_move_if(key:number,cursor:cursor_type,dx:number,dy:number){
 
 function render_window(){
   const m:model = {cursor: {x:0,y:0,width:10,height:20}, char_buffer: ""};
-  const q = new Queue<string>();
 
   r.InitWindow(screenWidth,screenHeight, "Sumi");
   r.SetTargetFPS(60);
+  
+  const runes :rune[] = [];
 
   while(!WindowShouldClose()){
     try_move_if(r.KEY_RIGHT,m.cursor,1,0);
@@ -45,17 +51,19 @@ function render_window(){
     try_move_if(r.KEY_LEFT,m.cursor,-1,0);
     try_move_if(r.KEY_UP,m.cursor,0,-1);
 
-    const rune = r.GetKeyPressed();
-    if (rune!=0){
-       q.push(String.fromCharCode(rune)); 
+    const c = r.GetKeyPressed();
+    if (c!=0){
+       runes.push({char: String.fromCharCode(c), x: m.cursor.x+5, y: m.cursor.y}); 
     }
 
     r.BeginDrawing();
+    for (const elem of runes){
+      r.DrawText(elem.char,elem.x,elem.y,20,r.RED);
+    }
     r.ClearBackground(r.RAYWHITE);
     r.DrawRectangle(m.cursor.x,m.cursor.y,m.cursor.width,m.cursor.height,r.GREEN);
     r.EndDrawing();
   }
-  console.log(q)
   r.CloseWindow();
 }
 
