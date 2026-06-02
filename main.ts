@@ -53,8 +53,14 @@ function render_window(){
 
     const c = r.GetKeyPressed();
     if (c != 0){
-       runes.push({char: String.fromCharCode(c), x: m.cursor.x+5, y: m.cursor.y});
-       m.cursor.x += 1;
+      runes.push({char: String.fromCharCode(c), x: m.cursor.x+5, y: m.cursor.y});
+      if (m.cursor.x + 6 < screenWidth - m.cursor.width) m.cursor.x += 6;
+      else{
+        if (m.cursor.y + 1 < screenHeight - m.cursor.height){ 
+          m.cursor.y += 20;
+          m.cursor.x = 0;
+        }  
+      }
     }
 
     r.BeginDrawing();
