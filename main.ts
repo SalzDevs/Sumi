@@ -52,8 +52,9 @@ function render_window(){
     try_move_if(r.KEY_UP,m.cursor,0,-1);
 
     const c = r.GetKeyPressed();
-    if (c!=0){
-       runes.push({char: String.fromCharCode(c), x: m.cursor.x+5, y: m.cursor.y}); 
+    if (c != 0){
+       runes.push({char: String.fromCharCode(c), x: m.cursor.x+5, y: m.cursor.y});
+       m.cursor.x += 1;
     }
 
     r.BeginDrawing();
