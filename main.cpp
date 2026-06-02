@@ -1,12 +1,14 @@
 extern "C" {
-#include "raylib.h"
+  #include "raylib.h"
 }
+
 #include <vector>
 
 const int screenWidth = 800;
 const int screenHeight = 400;
 const int fontSize = 20;
 const int spacing = 2;
+
 struct Cursor {
   int x, y;
   int width, height;
@@ -49,9 +51,9 @@ int main() {
     try_move_if(KEY_LEFT,  cursor, -1, 0);
     try_move_if(KEY_UP,    cursor, 0, -1);
 
-    int c = GetKeyPressed();
+    char c = GetCharPressed();
     if (c != 0) {
-      runes.push_back({(char)c, cursor.x, cursor.y});
+      runes.push_back({c, cursor.x, cursor.y});
       Vector2 glyphSize = MeasureTextEx(font,TextFormat("%c",c),fontSize,spacing);
       if (cursor.x + 1 < screenWidth - cursor.width) {
         cursor.x += glyphSize.x;
