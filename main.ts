@@ -17,9 +17,19 @@ interface model{
   char_buffer:string 
 }
 
-//TODO: Refactor this part (validate_next_position should only take the cursor)
-function validate_next_position(next_x:number, next_y:number,c:cursor_type) :boolean{
-  return (next_x>=0 && next_x<=screenWidth-c.width && next_y>=0 && next_y<=screenHeight-c.height);
+function in_bounds(cursor: cursor_type) :boolean{
+  return ((cursor.x >= 0) && (cursor.x <= screenWidth-cursor.width) && (cursor.y >= 0) && (cursor.y <= screenHeight-cursor.height));
+}
+
+function try_move_if(key:number,cursor:cursor_type,dx:number,dy:number){
+  if (!r.IsKeyDown(key)) return; 
+  cursor.x +=dx;
+  cursor.y +=dy;
+  if(!in_bounds(cursor)){
+    cursor.x-=dx,
+    cursor.y-=dy
+    return 
+  }
 }
 
 function render_window(){
@@ -30,13 +40,13 @@ function render_window(){
   r.SetTargetFPS(60);
 
   while(!WindowShouldClose()){
-    //TODO: Refactor this part (validate_next_position should only take the cursor)
-    if (r.IsKeyDown(r.KEY_RIGHT) && validate_next_position(m.cursor.x+1,m.cursor.y,m.cursor)) m.cursor.x+=1;
-    if (r.IsKeyDown(r.KEY_DOWN) && validate_next_position(m.cursor.x,m.cursor.y+1,m.cursor)) m.cursor.y+=1;
-    if (r.IsKeyDown(r.KEY_LEFT) && validate_next_position(m.cursor.x-1,m.cursor.y,m.cursor)) m.cursor.x-=1;
-    if (r.IsKeyDown(r.KEY_UP) && validate_next_position(m.cursor.x,m.cursor.y-1,m.cursor)) m.cursor.y-=1;
+    try_move_if(r.KEY_RIGHT,m.cursor,1,0);
+    try_move_if(r.KEY_DOWN,m.cursor,0,1);
+    try_move_if(r.KEY_LEFT,m.cursor,-1,0);
+    try_move_if(r.KEY_UP,m.cursor,0,-1);
+
     const rune = r.GetKeyPressed();
-    if ((rune!=0) && !(r.IsKeyDown(r.KEY_RIGHT)) && !(r.IsKeyDown(r.KEY_DOWN)) && !(r.IsKeyDown(r.KEY_LEFT)) && !(r.IsKeyDown(r.KEY_UP))){
+    if (rune!=0){
        q.push(String.fromCharCode(rune)); 
     }
 
