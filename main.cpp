@@ -3,26 +3,49 @@ extern "C" {
 }
 #include <string>
 
+const int fps = 60;
 const int screenWidth = 800;
 const int screenHeight = 400;
+
+
 const int fontSize = 20;
 const int spacing = 1;
+
+bool key_repeat(int key,int &timer,int delay,int rate){
+  if (!IsKeyDown(key)){
+    timer = 0;
+    return false;
+  }
+
+  timer++;
+  
+  if (timer==1) return true;
+  
+  if (timer>delay && (timer-delay)%rate==0) return true;
+  
+  return false;
+}
 
 int main() {
   std::string text;
   int cursorIndex = 0;
+  int arrowTimerRight = 0;
+  int arrowTimerLeft = 0;
+  int bkSpaceTimer = 0;
+  int key_delay = 30;
+  
+  int rate = 2;
 
   InitWindow(screenWidth, screenHeight, "Sumi");
-  SetTargetFPS(60);
+  SetTargetFPS(fps);
   
   Font font = LoadFont("/tmp/JetBrainsMono.ttf");
-
+  
   while (!WindowShouldClose()) {
+    if (key_repeat(KEY_RIGHT,arrowTimerRight,key_delay,rate) && cursorIndex < (int)text.size()) cursorIndex ++;
+    if (key_repeat(KEY_LEFT,arrowTimerLeft,key_delay,rate)  && cursorIndex > 0) cursorIndex--;
 
-    if (IsKeyPressed(KEY_RIGHT) && cursorIndex < (int)text.size()) cursorIndex++;
-    if (IsKeyPressed(KEY_LEFT)  && cursorIndex > 0)                  cursorIndex--;
-
-    if (IsKeyPressed(KEY_BACKSPACE) && cursorIndex > 0) {
+    if (key_repeat(KEY_BACKSPACE,bkSpaceTimer,key_delay,rate) && cursorIndex > 0) {
       text.erase(cursorIndex - 1, 1);
       cursorIndex--;
     }
