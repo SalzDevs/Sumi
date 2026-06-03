@@ -33,9 +33,8 @@ int main() {
   int arrowTimerLeft = 0;
   int bkSpaceTimer = 0;
   int key_delay = 30;
-  
   int rate = 2;
-
+  
   InitWindow(screenWidth, screenHeight, "Sumi");
   SetTargetFPS(fps);
   
@@ -60,9 +59,12 @@ int main() {
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    float penX = 0;
+    float penX = 20;
     float penY = 0;
-    float cursorX = 0, cursorY = 0;
+    float cursorX = 20, cursorY = 0;
+    int lineNum = 1;
+
+    DrawTextEx(font, TextFormat("%d", lineNum), {0, penY}, fontSize, spacing, GRAY);
 
     for (int i = 0; i < (int)text.size(); i++) {
       if (i == cursorIndex) {
@@ -74,8 +76,10 @@ int main() {
       float glyphW = MeasureTextEx(font, glyph, fontSize, spacing).x;
 
       if (penX + glyphW > screenWidth) {
-        penX = 0;
+        penX = 20;
         penY += fontSize;
+        lineNum++;
+        DrawTextEx(font, TextFormat("%d", lineNum), {0, penY}, fontSize, spacing, GRAY);
       }
 
       DrawTextEx(font, glyph, {penX, penY}, fontSize, spacing, RED);
@@ -88,7 +92,7 @@ int main() {
     }
 
     DrawRectangle(cursorX, cursorY, 2, fontSize, GREEN);
-
+    
     EndDrawing();
   }
 
