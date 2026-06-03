@@ -4,11 +4,14 @@ extern "C" {
 
 #include <string>
 #include <vector>
+#include <fstream>
 
 struct Cursor {
   int currentLine;
   int currentCol;
 };
+
+const std::string filePath = "./test.txt";
 
 const int fps = 60;
 const int screenWidth = 800;
@@ -125,6 +128,7 @@ int main() {
   SetTargetFPS(fps);
 
   Font font = LoadFont("/tmp/JetBrainsMono.ttf");
+  std::ofstream MyFile(filePath);
 
   while (!WindowShouldClose()) {
     if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
@@ -153,6 +157,13 @@ int main() {
     if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
       insert_newline(lines, cursor);
       desiredCol = -1;
+    }
+    
+    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyPressed(KEY_S)){
+      printf("Saving fileee!");
+      for (const auto& line : lines){
+        MyFile<<line+"\n";
+      }  
     }
 
     char typedChar = GetCharPressed();
