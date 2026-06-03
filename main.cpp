@@ -29,9 +29,11 @@ bool key_repeat(int key,int &timer,int delay,int rate){
 int main() {
   std::string text;
   int cursorIndex = 0;
+
   int arrowTimerRight = 0;
   int arrowTimerLeft = 0;
   int bkSpaceTimer = 0;
+  int enterTimer = 0;
   int key_delay = 30;
   int rate = 2;
   
@@ -47,6 +49,11 @@ int main() {
     if (key_repeat(KEY_BACKSPACE,bkSpaceTimer,key_delay,rate) && cursorIndex > 0) {
       text.erase(cursorIndex - 1, 1);
       cursorIndex--;
+    }
+    
+    if (key_repeat(KEY_ENTER,enterTimer,key_delay,rate)) {
+      text.insert(text.begin() + cursorIndex, '\n');
+      cursorIndex++;
     }
 
     char c = GetCharPressed();
@@ -70,6 +77,14 @@ int main() {
       if (i == cursorIndex) {
         cursorX = penX;
         cursorY = penY;
+      }
+      
+      if (text[i] == '\n') {
+        penX = 20;
+        penY += fontSize;
+        lineNum++;
+        DrawTextEx(font, TextFormat("%d", lineNum), {0, penY}, fontSize, spacing, GRAY);
+        continue;
       }
 
       const char* glyph = TextFormat("%c", text[i]);
