@@ -165,21 +165,59 @@ void backspace(Editor& editor) {
   reset_desired_col(editor);
 }
 
-void save_file(Editor& editor){
+void save_file(Editor& editor) {
   std::ofstream file(editor.buffer.filePath);
 
-  if(!file) {
-    printf("Failed to save file!");
+  if (!file) {
+    printf("Failed to save file!\n");
     return;
   }
 
   for (const auto& line : editor.buffer.lines) {
-    file << line + "\n";
+    file << line << '\n';
   }
 
   editor.buffer.modified = false;
-  file.close();
-} 
+}
+
+void render_editor(Editor& editor, Font font) {
+  float penY = 0;
+  float cursorX = editor.view.gutterWidth;
+  float cursorY = 0;
+
+  for (int lineIndex = 0; lineIndex < (int)editor.buffer.lines.size(); lineIndex++) {
+    float penX = editor.view.gutterWidth;
+
+    DrawTextEx(font, TextFormat("%d", lineIndex + 1), {0, penY}, editor.view.fontSize, editor.view.spacing, GRAY);
+
+    for (int col = 0; col < (int)editor.buffer.lines[lineIndex].size(); col++) {
+      if (lineIndex == editor.cursor.currentLine && col == editor.cursor.currentCol) {
+        cursorX = penX;
+        cursorY = penY;
+      }
+
+      const char* glyph = TextFormat("%c", editor.buffer.lines[lineIndex][col]);
+      float glyphW = MeasureTextEx(font, glyph, editor.view.fontSize, editor.view.spacing).x;
+
+      if (penX + glyphW > screenWidth) {
+        penX = editor.view.gutterWidth;
+        penY += editor.view.fontSize;
+      }
+
+      DrawTextEx(font, glyph, {penX, penY}, editor.view.fontSize, editor.view.spacing, RED);
+      penX += glyphW;
+    }
+
+    if (lineIndex == editor.cursor.currentLine && editor.cursor.currentCol == (int)editor.buffer.lines[lineIndex].size()) {
+      cursorX = penX;
+      cursorY = penY;
+    }
+
+    penY += editor.view.fontSize;
+  }
+
+  DrawRectangle(cursorX, cursorY, 2, editor.view.fontSize, GREEN);
+}
 
 int main() {
   Editor editor;
@@ -228,7 +266,6 @@ int main() {
       save_file(editor);
     }
 
-
     char typedChar = GetCharPressed();
     if (typedChar != 0) {
       insert_char(editor, typedChar);
@@ -236,44 +273,7 @@ int main() {
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
-
-    float penY = 0;
-    float cursorX = editor.view.gutterWidth;
-    float cursorY = 0;
-
-    for (int lineIndex = 0; lineIndex < (int)editor.buffer.lines.size(); lineIndex++) {
-      float penX = editor.view.gutterWidth;
-
-      DrawTextEx(font, TextFormat("%d", lineIndex + 1), {0, penY}, editor.view.fontSize, editor.view.spacing, GRAY);
-
-      for (int col = 0; col < (int)editor.buffer.lines[lineIndex].size(); col++) {
-        if (lineIndex == editor.cursor.currentLine && col == editor.cursor.currentCol) {
-          cursorX = penX;
-          cursorY = penY;
-        }
-
-        const char* glyph = TextFormat("%c", editor.buffer.lines[lineIndex][col]);
-        float glyphW = MeasureTextEx(font, glyph, editor.view.fontSize, editor.view.spacing).x;
-
-        if (penX + glyphW > screenWidth) {
-          penX = editor.view.gutterWidth;
-          penY += editor.view.fontSize;
-        }
-
-        DrawTextEx(font, glyph, {penX, penY}, editor.view.fontSize, editor.view.spacing, RED);
-        penX += glyphW;
-      }
-
-      if (lineIndex == editor.cursor.currentLine && editor.cursor.currentCol == (int)editor.buffer.lines[lineIndex].size()) {
-        cursorX = penX;
-        cursorY = penY;
-      }
-
-      penY += editor.view.fontSize;
-    }
-
-    DrawRectangle(cursorX, cursorY, 2, editor.view.fontSize, GREEN);
-
+    render_editor(editor, font);
     EndDrawing();
   }
 
