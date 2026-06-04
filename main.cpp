@@ -6,6 +6,13 @@ extern "C" {
 #include <string>
 #include <vector>
 
+int arrowTimerRight = 0;
+int arrowTimerLeft = 0;
+int bkSpaceTimer = 0;
+int enterTimer = 0;
+int keyDelay = 30;
+int repeatRate = 2;
+
 struct Buffer {
   std::vector<std::string> lines = {""};
   std::string filePath = "./test.txt";
@@ -180,6 +187,37 @@ void save_file(Editor& editor) {
   editor.buffer.modified = false;
 }
 
+void handle_input(Editor& editor) {
+  if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
+    move_right(editor);
+  }
+
+  if (key_repeat(KEY_LEFT, arrowTimerLeft, keyDelay, repeatRate)) {
+    move_left(editor);
+  }
+
+  if (IsKeyPressed(KEY_UP)) {
+    move_up(editor);
+  }
+
+  if (IsKeyPressed(KEY_DOWN)) {
+    move_down(editor);
+  }
+
+  if (key_repeat(KEY_BACKSPACE, bkSpaceTimer, keyDelay, repeatRate)) {
+    backspace(editor);
+  }
+
+  if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
+    insert_newline(editor);
+  }
+
+  if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) &&
+      IsKeyPressed(KEY_S)) {
+    save_file(editor);
+  }
+}
+
 void render_editor(Editor& editor, Font font) {
   float penY = 0;
   float cursorX = editor.view.gutterWidth;
@@ -222,13 +260,6 @@ void render_editor(Editor& editor, Font font) {
 int main() {
   Editor editor;
 
-  int arrowTimerRight = 0;
-  int arrowTimerLeft = 0;
-  int bkSpaceTimer = 0;
-  int enterTimer = 0;
-  int keyDelay = 30;
-  int repeatRate = 2;
-
   InitWindow(screenWidth, screenHeight, "Sumi");
   SetTargetFPS(fps);
 
@@ -237,34 +268,7 @@ int main() {
   if (!customFontLoaded) font = GetFontDefault();
 
   while (!WindowShouldClose()) {
-    if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
-      move_right(editor);
-    }
-
-    if (key_repeat(KEY_LEFT, arrowTimerLeft, keyDelay, repeatRate)) {
-      move_left(editor);
-    }
-
-    if (IsKeyPressed(KEY_UP)) {
-      move_up(editor);
-    }
-
-    if (IsKeyPressed(KEY_DOWN)) {
-      move_down(editor);
-    }
-
-    if (key_repeat(KEY_BACKSPACE, bkSpaceTimer, keyDelay, repeatRate)) {
-      backspace(editor);
-    }
-
-    if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
-      insert_newline(editor);
-    }
-
-    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) &&
-        IsKeyPressed(KEY_S)) {
-      save_file(editor);
-    }
+    handle_input(editor);
 
     char typedChar = GetCharPressed();
     if (typedChar != 0) {
