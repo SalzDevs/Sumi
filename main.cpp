@@ -2,23 +2,37 @@ extern "C" {
   #include "raylib.h"
 }
 
+#include <fstream>
 #include <string>
 #include <vector>
-#include <fstream>
 
-struct Cursor {
-  int currentLine;
-  int currentCol;
+struct Buffer {
+  std::vector<std::string> lines = {""};
+  std::string filePath = "./test.txt";
+  bool modified = false;
 };
 
-const std::string filePath = "./test.txt";
+struct Cursor {
+  int currentLine = 0;
+  int currentCol = 0;
+  int desiredCol = -1;
+};
+
+struct View {
+  int gutterWidth = 20;
+  int fontSize = 20;
+  int spacing = 1;
+};
+
+struct Editor {
+  Buffer buffer;
+  Cursor cursor;
+  View view;
+};
 
 const int fps = 60;
 const int screenWidth = 800;
 const int screenHeight = 400;
-const int gutterWidth = 20;
-const int fontSize = 20;
-const int spacing = 1;
 
 bool key_repeat(int key, int &timer, int delay, int rate) {
   if (!IsKeyDown(key)) {
@@ -34,88 +48,125 @@ bool key_repeat(int key, int &timer, int delay, int rate) {
   return false;
 }
 
-int line_length(const std::vector<std::string>& lines, int line) {
-  return (int)lines[line].size();
+int line_length(const Buffer& buffer, int line) {
+  return (int)buffer.lines[line].size();
 }
 
-void move_left(const std::vector<std::string>& lines, Cursor& cursor) {
+void reset_desired_col(Editor& editor) {
+  editor.cursor.desiredCol = -1;
+}
+
+void move_left(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+
   if (cursor.currentCol > 0) {
     cursor.currentCol--;
   } else if (cursor.currentLine > 0) {
     cursor.currentLine--;
-    cursor.currentCol = line_length(lines, cursor.currentLine);
+    cursor.currentCol = line_length(buffer, cursor.currentLine);
   }
+
+  reset_desired_col(editor);
 }
 
-void move_right(const std::vector<std::string>& lines, Cursor& cursor) {
-  if (cursor.currentCol < line_length(lines, cursor.currentLine)) {
+void move_right(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+
+  if (cursor.currentCol < line_length(buffer, cursor.currentLine)) {
     cursor.currentCol++;
-  } else if (cursor.currentLine + 1 < (int)lines.size()) {
+  } else if (cursor.currentLine + 1 < (int)buffer.lines.size()) {
     cursor.currentLine++;
     cursor.currentCol = 0;
   }
+
+  reset_desired_col(editor);
 }
 
-void move_up(const std::vector<std::string>& lines, Cursor& cursor, int& desiredCol) {
+void move_up(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+
   if (cursor.currentLine == 0) return;
 
-  if (desiredCol == -1) desiredCol = cursor.currentCol;
+  if (cursor.desiredCol == -1) cursor.desiredCol = cursor.currentCol;
 
   cursor.currentLine--;
-  int targetLength = line_length(lines, cursor.currentLine);
-  cursor.currentCol = desiredCol < targetLength ? desiredCol : targetLength;
+  int targetLength = line_length(buffer, cursor.currentLine);
+  cursor.currentCol = cursor.desiredCol < targetLength ? cursor.desiredCol : targetLength;
 }
 
-void move_down(const std::vector<std::string>& lines, Cursor& cursor, int& desiredCol) {
-  if (cursor.currentLine + 1 >= (int)lines.size()) return;
+void move_down(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
 
-  if (desiredCol == -1) desiredCol = cursor.currentCol;
+  if (cursor.currentLine + 1 >= (int)buffer.lines.size()) return;
+
+  if (cursor.desiredCol == -1) cursor.desiredCol = cursor.currentCol;
 
   cursor.currentLine++;
-  int targetLength = line_length(lines, cursor.currentLine);
-  cursor.currentCol = desiredCol < targetLength ? desiredCol : targetLength;
+  int targetLength = line_length(buffer, cursor.currentLine);
+  cursor.currentCol = cursor.desiredCol < targetLength ? cursor.desiredCol : targetLength;
 }
 
-void insert_char(std::vector<std::string>& lines, Cursor& cursor, char c) {
-  std::string& line = lines[cursor.currentLine];
+void insert_char(Editor& editor, char c) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+
+  std::string& line = buffer.lines[cursor.currentLine];
   line.insert(line.begin() + cursor.currentCol, c);
   cursor.currentCol++;
+
+  buffer.modified = true;
+  reset_desired_col(editor);
 }
 
-void insert_newline(std::vector<std::string>& lines, Cursor& cursor) {
-  std::string& line = lines[cursor.currentLine];
+void insert_newline(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+
+  std::string& line = buffer.lines[cursor.currentLine];
   std::string rest = line.substr(cursor.currentCol);
 
   line.erase(cursor.currentCol);
-  lines.insert(lines.begin() + cursor.currentLine + 1, rest);
+  buffer.lines.insert(buffer.lines.begin() + cursor.currentLine + 1, rest);
 
   cursor.currentLine++;
   cursor.currentCol = 0;
+
+  buffer.modified = true;
+  reset_desired_col(editor);
 }
 
-void backspace(std::vector<std::string>& lines, Cursor& cursor) {
-  std::string& line = lines[cursor.currentLine];
+void backspace(Editor& editor) {
+  Buffer& buffer = editor.buffer;
+  Cursor& cursor = editor.cursor;
+  std::string& line = buffer.lines[cursor.currentLine];
 
   if (cursor.currentCol > 0) {
     line.erase(cursor.currentCol - 1, 1);
     cursor.currentCol--;
+    buffer.modified = true;
+    reset_desired_col(editor);
     return;
   }
 
   if (cursor.currentLine == 0) return;
 
-  int previousLength = line_length(lines, cursor.currentLine - 1);
-  lines[cursor.currentLine - 1] += line;
-  lines.erase(lines.begin() + cursor.currentLine);
+  int previousLength = line_length(buffer, cursor.currentLine - 1);
+  buffer.lines[cursor.currentLine - 1] += line;
+  buffer.lines.erase(buffer.lines.begin() + cursor.currentLine);
 
   cursor.currentLine--;
   cursor.currentCol = previousLength;
+
+  buffer.modified = true;
+  reset_desired_col(editor);
 }
 
 int main() {
-  std::vector<std::string> lines = {""};
-  Cursor cursor = {0, 0};
-  int desiredCol = -1;
+  Editor editor;
 
   int arrowTimerRight = 0;
   int arrowTimerLeft = 0;
@@ -127,95 +178,94 @@ int main() {
   InitWindow(screenWidth, screenHeight, "Sumi");
   SetTargetFPS(fps);
 
-  Font font = LoadFont("/tmp/JetBrainsMono.ttf");
-  std::ofstream MyFile(filePath);
+  Font font = LoadFont("assets/JetBrainsMono-Regular.ttf");
+  bool customFontLoaded = font.texture.id != 0;
+  if (!customFontLoaded) font = GetFontDefault();
+
+  std::ofstream MyFile(editor.buffer.filePath);
 
   while (!WindowShouldClose()) {
     if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
-      move_right(lines, cursor);
-      desiredCol = -1;
+      move_right(editor);
     }
 
     if (key_repeat(KEY_LEFT, arrowTimerLeft, keyDelay, repeatRate)) {
-      move_left(lines, cursor);
-      desiredCol = -1;
+      move_left(editor);
     }
 
     if (IsKeyPressed(KEY_UP)) {
-      move_up(lines, cursor, desiredCol);
+      move_up(editor);
     }
 
     if (IsKeyPressed(KEY_DOWN)) {
-      move_down(lines, cursor, desiredCol);
+      move_down(editor);
     }
 
     if (key_repeat(KEY_BACKSPACE, bkSpaceTimer, keyDelay, repeatRate)) {
-      backspace(lines, cursor);
-      desiredCol = -1;
+      backspace(editor);
     }
 
     if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
-      insert_newline(lines, cursor);
-      desiredCol = -1;
+      insert_newline(editor);
     }
     
-    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyPressed(KEY_S)){
+    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyPressed(KEY_S)) {
       printf("Saving fileee!");
-      for (const auto& line : lines){
-        MyFile<<line+"\n";
-      }  
+      for (const auto& line : editor.buffer.lines) {
+        MyFile << line + "\n";
+      }
+      editor.buffer.modified = false;
     }
 
     char typedChar = GetCharPressed();
     if (typedChar != 0) {
-      insert_char(lines, cursor, typedChar);
-      desiredCol = -1;
+      insert_char(editor, typedChar);
     }
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
     float penY = 0;
-    float cursorX = gutterWidth;
+    float cursorX = editor.view.gutterWidth;
     float cursorY = 0;
 
-    for (int lineIndex = 0; lineIndex < (int)lines.size(); lineIndex++) {
-      float penX = gutterWidth;
+    for (int lineIndex = 0; lineIndex < (int)editor.buffer.lines.size(); lineIndex++) {
+      float penX = editor.view.gutterWidth;
 
-      DrawTextEx(font, TextFormat("%d", lineIndex + 1), {0, penY}, fontSize, spacing, GRAY);
+      DrawTextEx(font, TextFormat("%d", lineIndex + 1), {0, penY}, editor.view.fontSize, editor.view.spacing, GRAY);
 
-      for (int col = 0; col < (int)lines[lineIndex].size(); col++) {
-        if (lineIndex == cursor.currentLine && col == cursor.currentCol) {
+      for (int col = 0; col < (int)editor.buffer.lines[lineIndex].size(); col++) {
+        if (lineIndex == editor.cursor.currentLine && col == editor.cursor.currentCol) {
           cursorX = penX;
           cursorY = penY;
         }
 
-        const char* glyph = TextFormat("%c", lines[lineIndex][col]);
-        float glyphW = MeasureTextEx(font, glyph, fontSize, spacing).x;
+        const char* glyph = TextFormat("%c", editor.buffer.lines[lineIndex][col]);
+        float glyphW = MeasureTextEx(font, glyph, editor.view.fontSize, editor.view.spacing).x;
 
         if (penX + glyphW > screenWidth) {
-          penX = gutterWidth;
-          penY += fontSize;
+          penX = editor.view.gutterWidth;
+          penY += editor.view.fontSize;
         }
 
-        DrawTextEx(font, glyph, {penX, penY}, fontSize, spacing, RED);
+        DrawTextEx(font, glyph, {penX, penY}, editor.view.fontSize, editor.view.spacing, RED);
         penX += glyphW;
       }
 
-      if (lineIndex == cursor.currentLine && cursor.currentCol == (int)lines[lineIndex].size()) {
+      if (lineIndex == editor.cursor.currentLine && editor.cursor.currentCol == (int)editor.buffer.lines[lineIndex].size()) {
         cursorX = penX;
         cursorY = penY;
       }
 
-      penY += fontSize;
+      penY += editor.view.fontSize;
     }
 
-    DrawRectangle(cursorX, cursorY, 2, fontSize, GREEN);
+    DrawRectangle(cursorX, cursorY, 2, editor.view.fontSize, GREEN);
 
     EndDrawing();
   }
 
-  UnloadFont(font);
+  if (customFontLoaded) UnloadFont(font);
   CloseWindow();
   return 0;
 }
