@@ -1,5 +1,5 @@
 extern "C" {
-  #include "raylib.h"
+#include "raylib.h"
 }
 
 #include <fstream>
@@ -165,6 +165,22 @@ void backspace(Editor& editor) {
   reset_desired_col(editor);
 }
 
+void save_file(Editor& editor){
+  std::ofstream file(editor.buffer.filePath);
+
+  if(!file) {
+    printf("Failed to save file!");
+    return;
+  }
+
+  for (const auto& line : editor.buffer.lines) {
+    file << line + "\n";
+  }
+
+  editor.buffer.modified = false;
+  file.close();
+} 
+
 int main() {
   Editor editor;
 
@@ -181,8 +197,6 @@ int main() {
   Font font = LoadFont("assets/JetBrainsMono-Regular.ttf");
   bool customFontLoaded = font.texture.id != 0;
   if (!customFontLoaded) font = GetFontDefault();
-
-  std::ofstream MyFile(editor.buffer.filePath);
 
   while (!WindowShouldClose()) {
     if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
@@ -208,14 +222,12 @@ int main() {
     if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
       insert_newline(editor);
     }
-    
-    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyPressed(KEY_S)) {
-      printf("Saving fileee!");
-      for (const auto& line : editor.buffer.lines) {
-        MyFile << line + "\n";
-      }
-      editor.buffer.modified = false;
+
+    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) &&
+        IsKeyPressed(KEY_S)) {
+      save_file(editor);
     }
+
 
     char typedChar = GetCharPressed();
     if (typedChar != 0) {
