@@ -5,11 +5,9 @@ extern "C" {
 #include <fstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
-int arrowTimerRight = 0;
-int arrowTimerLeft = 0;
-int bkSpaceTimer = 0;
-int enterTimer = 0;
+
 int keyDelay = 30;
 int repeatRate = 2;
 
@@ -35,6 +33,33 @@ struct Editor {
   Buffer buffer;
   Cursor cursor;
   View view;
+};
+
+struct Command {
+  std::string name;
+  void(*action)(Editor&);
+};
+
+struct CommandRegistry {
+  std::unordered_map<std::string, Command> commands;
+  std::unordered_map<int, std::string> keyMap;
+  std::unordered_map<int, int> timers;
+
+  void register_command(const std::string& name, void(*action)(Editor&)) {
+    commands[name] = {name, action};
+  }
+
+  void bind_key(int key, const std::string& name) {
+    keyMap[key] = name;
+    timers[key] = 0;
+  }
+
+  void execute(const std::string& name, Editor& editor) {
+    auto it = commands.find(name);
+    if (it != commands.end() && it->second.action) {
+      it->second.action(editor);
+    }
+  }
 };
 
 const int fps = 60;
@@ -187,34 +212,23 @@ void save_file(Editor& editor) {
   editor.buffer.modified = false;
 }
 
-void handle_input(Editor& editor) {
-  if (key_repeat(KEY_RIGHT, arrowTimerRight, keyDelay, repeatRate)) {
-    move_right(editor);
-  }
-
-  if (key_repeat(KEY_LEFT, arrowTimerLeft, keyDelay, repeatRate)) {
-    move_left(editor);
-  }
-
-  if (IsKeyPressed(KEY_UP)) {
-    move_up(editor);
-  }
-
-  if (IsKeyPressed(KEY_DOWN)) {
-    move_down(editor);
-  }
-
-  if (key_repeat(KEY_BACKSPACE, bkSpaceTimer, keyDelay, repeatRate)) {
-    backspace(editor);
-  }
-
-  if (key_repeat(KEY_ENTER, enterTimer, keyDelay, repeatRate)) {
-    insert_newline(editor);
+void handle_input(Editor& editor, CommandRegistry& registry) {
+  for (const auto& [key, cmd_name] : registry.keyMap) {
+    bool triggered = false;
+    if (key == KEY_UP || key == KEY_DOWN) {
+      triggered = IsKeyPressed(key);
+    } else {
+      int& timer = registry.timers[key];
+      triggered = key_repeat(key, timer, keyDelay, repeatRate);
+    }
+    if (triggered) {
+      registry.execute(cmd_name, editor);
+    }
   }
 
   if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) &&
       IsKeyPressed(KEY_S)) {
-    save_file(editor);
+    registry.execute("save_file", editor);
   }
 }
 
@@ -259,6 +273,22 @@ void render_editor(Editor& editor, Font font) {
 
 int main() {
   Editor editor;
+  CommandRegistry registry;
+
+  registry.register_command("move_right", move_right);
+  registry.register_command("move_left", move_left);
+  registry.register_command("move_up", move_up);
+  registry.register_command("move_down", move_down);
+  registry.register_command("backspace", backspace);
+  registry.register_command("insert_newline", insert_newline);
+  registry.register_command("save_file", save_file);
+
+  registry.bind_key(KEY_RIGHT, "move_right");
+  registry.bind_key(KEY_LEFT, "move_left");
+  registry.bind_key(KEY_UP, "move_up");
+  registry.bind_key(KEY_DOWN, "move_down");
+  registry.bind_key(KEY_BACKSPACE, "backspace");
+  registry.bind_key(KEY_ENTER, "insert_newline");
 
   InitWindow(screenWidth, screenHeight, "Sumi");
   SetTargetFPS(fps);
@@ -268,7 +298,7 @@ int main() {
   if (!customFontLoaded) font = GetFontDefault();
 
   while (!WindowShouldClose()) {
-    handle_input(editor);
+    handle_input(editor, registry);
 
     char typedChar = GetCharPressed();
     if (typedChar != 0) {
