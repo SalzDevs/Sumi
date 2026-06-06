@@ -1,0 +1,4 @@
+CompileFlags:
+  Add:
+    - "-I/tmp/raylib/src"
+    - "-std=c++17"
