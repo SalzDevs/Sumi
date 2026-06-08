@@ -304,7 +304,22 @@ end)
 --]]
 
 -- -------------------------------------------------------------------------
--- Example 13: Invert arrow keys (vim-like or just playful)
+-- Example 13: Shared Lua modules via require()
+-- -------------------------------------------------------------------------
+-- Create ~/.config/sumi/lib/colors.lua:
+--
+--     local M = {}
+--     M.keyword = render:Color(180, 120, 220)
+--     M.comment = render:Color(120, 160, 120)
+--     return M
+--
+-- Then use it in init.lua or any plugin:
+--
+--     local col = require("colors")
+--     theme:SetColor("text", "#cccccc")
+
+-- -------------------------------------------------------------------------
+-- Example 14: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

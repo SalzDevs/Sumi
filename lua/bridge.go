@@ -44,8 +44,30 @@ func NewBridge(ed *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *regi
 		eventHandlers: make(map[string][]*glua.LFunction),
 	}
 	ed.EventDispatcher = b.dispatchEvent
+	b.setupRequirePaths()
 	b.registerAPI()
 	return b
+}
+
+func (b *Bridge) setupRequirePaths() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	libDir := filepath.Join(home, ".config", "sumi", "lib")
+	pluginDir := filepath.Join(home, ".config", "sumi", "plugins")
+
+	pkg := b.L.GetGlobal("package")
+	if pkg == glua.LNil {
+		return
+	}
+	oldPath := string(b.L.GetField(pkg, "path").(glua.LString))
+	newPath := oldPath + ";" +
+		filepath.Join(libDir, "?.lua") + ";" +
+		filepath.Join(libDir, "?", "init.lua") + ";" +
+		filepath.Join(pluginDir, "?.lua") + ";" +
+		filepath.Join(pluginDir, "?", "init.lua")
+	b.L.SetField(pkg, "path", glua.LString(newPath))
 }
 
 func (b *Bridge) registerAPI() {

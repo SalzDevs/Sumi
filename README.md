@@ -208,6 +208,36 @@ Event names:
 
 The engine exposes primitives. The personality lives in Lua.
 
+## `require()` — shared Lua modules
+
+Standard Lua `require("modulename")` works. Sumi appends these search paths to `package.path`:
+
+```
+~/.config/sumi/lib/?.lua
+~/.config/sumi/lib/?/init.lua
+~/.config/sumi/plugins/?.lua
+~/.config/sumi/plugins/?/init.lua
+```
+
+Create `~/.config/sumi/lib/utils.lua`:
+
+```lua
+local M = {}
+
+function M.say_hello(name)
+    print("Hello, " .. name)
+end
+
+return M
+```
+
+Use it anywhere (init.lua, plugins, or callbacks):
+
+```lua
+local utils = require("utils")
+utils.say_hello("Sumi")
+```
+
 ## Default Controls
 
 | Key | Action |
