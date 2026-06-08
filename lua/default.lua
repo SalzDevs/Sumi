@@ -281,7 +281,30 @@ end)
 --]]
 
 -- -------------------------------------------------------------------------
--- Example 12: Invert arrow keys (vim-like or just playful)
+-- Example 12: Syntax highlighting — color numbers and strings
+-- -------------------------------------------------------------------------
+--[[
+local ORANGE = render:Color(255, 165, 0)
+local GREEN  = render:Color(80, 200, 120)
+
+highlight:SetCallback(function(line_idx, text)
+    local spans = {}
+    -- Highlight numbers (sequence of digits)
+    for start_pos, digits in text:gmatch("()(%d+)") do
+        local end_pos = start_pos + #digits - 1
+        table.insert(spans, {start_pos, end_pos, ORANGE})
+    end
+    -- Highlight quoted strings (simplistic — no escapes)
+    for start_pos, content in text:gmatch('()("[^"]*")') do
+        local end_pos = start_pos + #content - 1
+        table.insert(spans, {start_pos, end_pos, GREEN})
+    end
+    return spans
+end)
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 13: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

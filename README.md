@@ -191,6 +191,12 @@ Event names:
 | `mode_change` | After the editor mode changes | `(mode_name)` e.g. `"normal"`, `"command"`, `"visual"` |
 | `buffer_change` | After any buffer mutation (insert, delete, paste, undo, etc.) | none |
 
+### `highlight`
+
+| Method | Description |
+|---|---|
+| `highlight:SetCallback(fn)` | Register a syntax highlighter. `fn(line_idx, text)` receives 1-based line number and text. It must return an array of span tables: `{start, end, color}` or `{start=start, end=end, color=color}`. Positions are 1-based character indices. Color can be a packed integer from `render:Color(...)` or a `"#RRGGBB"` hex string. |
+
 ## Architecture
 
 | Layer | Language | Responsibility |

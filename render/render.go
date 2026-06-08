@@ -204,6 +204,29 @@ func Render(e *editor.Editor, font raylib.Font) {
 		}
 
 		runes := []rune(line)
+
+		// Build per-character color array for this line
+		lineColors := make([]raylib.Color, len(runes))
+		for i := range lineColors {
+			lineColors[i] = theme.Get("text")
+		}
+		if e.HighlightFn != nil {
+			spans := e.HighlightFn(lineIdx, line)
+			for _, s := range spans {
+				c := raylib.NewColor(
+					uint8((s.Color>>24)&0xFF),
+					uint8((s.Color>>16)&0xFF),
+					uint8((s.Color>>8)&0xFF),
+					uint8(s.Color&0xFF),
+				)
+				for i := s.Start; i <= s.End && i < len(lineColors); i++ {
+					if i >= 0 {
+						lineColors[i] = c
+					}
+				}
+			}
+		}
+
 		for col, r := range runes {
 			if lineIdx == e.Cursor.Line && col == e.Cursor.Col {
 				cursorX = penX
@@ -215,7 +238,7 @@ func Render(e *editor.Editor, font raylib.Font) {
 			if e.IsSelected(lineIdx, col) {
 				raylib.DrawRectangle(int32(penX), int32(penY), int32(glyphW), FontSize, theme.Get("selectBg"))
 			}
-			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("text"))
+			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), lineColors[col])
 			penX += glyphW
 		}
 

@@ -29,6 +29,7 @@ type Bridge struct {
 	renderHookFn  *glua.LFunction
 	statuslineFn  *glua.LFunction
 	eventHandlers map[string][]*glua.LFunction
+	highlightFn   *glua.LFunction
 }
 
 // NewBridge creates a Lua state and exposes the editor API.
@@ -131,6 +132,7 @@ func (b *Bridge) registerAPI() {
 	b.registerThemeAPI()
 	b.registerStatuslineAPI()
 	b.registerEventsAPI()
+	b.registerHighlightAPI()
 }
 
 // -------------------------------------------------------------------------
@@ -1155,6 +1157,95 @@ func (b *Bridge) luaEventsUnregister(L *glua.LState) int {
 		delete(b.eventHandlers, name)
 	}
 	return 0
+}
+
+// -------------------------------------------------------------------------
+// Highlight API
+// -------------------------------------------------------------------------
+
+func (b *Bridge) registerHighlightAPI() {
+	hlTbl := b.L.NewTable()
+	b.L.SetField(hlTbl, "SetCallback", b.L.NewFunction(b.luaHighlightSetCallback))
+	b.L.SetGlobal("highlight", hlTbl)
+}
+
+func (b *Bridge) luaHighlightSetCallback(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	fn := L.CheckFunction(2)
+	b.highlightFn = fn
+
+	b.Editor.HighlightFn = func(line int, text string) []editor.HighlightSpan {
+		if b.highlightFn == nil {
+			return nil
+		}
+		b.L.Push(b.highlightFn)
+		b.L.Push(glua.LNumber(line + 1)) // 1-based for Lua
+		b.L.Push(glua.LString(text))
+		if err := b.L.PCall(2, 1, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "highlight error: %v\n", err)
+			b.highlightFn = nil
+			b.Editor.HighlightFn = nil
+			return nil
+		}
+		ret := b.L.Get(-1)
+		b.L.Pop(1)
+
+		tbl, ok := ret.(*glua.LTable)
+		if !ok {
+			return nil
+		}
+
+		var spans []editor.HighlightSpan
+		tbl.ForEach(func(_, value glua.LValue) {
+			spanTbl, ok := value.(*glua.LTable)
+			if !ok {
+				return
+			}
+			start := 0
+			end := 0
+			var color uint32
+
+			// support {start=1, end=5, color="#ff0000"} or {1, 5, "#ff0000"}
+			if s := b.L.GetField(spanTbl, "start"); s.Type() == glua.LTNumber {
+				start = int(s.(glua.LNumber)) - 1 // to 0-based
+			} else if s := b.L.RawGetInt(spanTbl, 1); s.Type() == glua.LTNumber {
+				start = int(s.(glua.LNumber)) - 1
+			}
+			if e := b.L.GetField(spanTbl, "end"); e.Type() == glua.LTNumber {
+				end = int(e.(glua.LNumber)) - 1
+			} else if e := b.L.RawGetInt(spanTbl, 2); e.Type() == glua.LTNumber {
+				end = int(e.(glua.LNumber)) - 1
+			}
+			if c := b.L.GetField(spanTbl, "color"); c.Type() == glua.LTNumber || c.Type() == glua.LTString {
+				color = packLuaColor(c)
+			} else if c := b.L.RawGetInt(spanTbl, 3); c.Type() == glua.LTNumber || c.Type() == glua.LTString {
+				color = packLuaColor(c)
+			}
+			if end >= start && start >= 0 {
+				spans = append(spans, editor.HighlightSpan{Start: start, End: end, Color: color})
+			}
+		})
+		return spans
+	}
+	return 0
+}
+
+func packLuaColor(v glua.LValue) uint32 {
+	if n, ok := v.(glua.LNumber); ok {
+		return uint32(n)
+	}
+	s := strings.TrimPrefix(string(v.(glua.LString)), "#")
+	if len(s) == 6 {
+		if v, err := strconv.ParseUint(s, 16, 32); err == nil {
+			return uint32(v)<<8 | 0xFF
+		}
+	}
+	if len(s) == 8 {
+		if v, err := strconv.ParseUint(s, 16, 32); err == nil {
+			return uint32(v)
+		}
+	}
+	return 0xFFFFFFFF
 }
 
 // -------------------------------------------------------------------------

@@ -75,6 +75,15 @@ type Editor struct {
 	StatusLine  func() (string, string) // returns left and right status text
 	Settings    map[string]interface{}  // buffer-local settings
 	EventDispatcher func(name string, args ...interface{}) // called by core to fire Lua events
+	HighlightFn func(line int, text string) []HighlightSpan // syntax coloring; nil means no highlighting
+}
+
+// HighlightSpan defines a colored rune range on a single line.
+// Start and End are 0-based rune indices. End is inclusive.
+type HighlightSpan struct {
+	Start int
+	End   int
+	Color uint32 // packed 0xRRGGBBAA
 }
 
 func NewEditor() *Editor {
