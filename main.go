@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"sumi/config"
@@ -42,7 +43,7 @@ func shouldFire(key int32) bool {
 	return false
 }
 
-func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRegistry) {
+func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRegistry, font raylib.Font) {
 	mode := e.ModeName()
 
 	// --- repeatable keys (arrows, backspace) ---
@@ -81,6 +82,20 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 			}
 		}
 		key = raylib.GetKeyPressed()
+	}
+
+	// --- mouse ---
+	if e.Mode != editor.ModeCommand {
+		if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
+			pos := raylib.GetMousePosition()
+			line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
+			_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+		}
+		wheel := raylib.GetMouseWheelMove()
+		if wheel != 0 {
+			e.Viewport.ScrollY -= int(wheel * 3)
+			render.ClampScroll(e)
+		}
 	}
 
 	// --- character input ---
@@ -137,7 +152,7 @@ func main() {
 	defer raylib.UnloadFont(font)
 
 	for !raylib.WindowShouldClose() && !ed.ShouldQuit {
-		handleInput(ed, cmdReg, keyReg)
+		handleInput(ed, cmdReg, keyReg, font)
 		render.Render(ed, font)
 	}
 }

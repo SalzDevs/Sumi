@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"sumi/editor"
@@ -164,6 +165,30 @@ func RegisterBuiltinCommands(r *registry.CommandRegistry) {
 	r.Register("paste", "Paste clipboard at cursor", 0, 0,
 		func(e *editor.Editor, args []string) error {
 			e.Paste()
+			return nil
+		})
+
+	r.Register("goto_position", "Move cursor to position", 2, 2,
+		func(e *editor.Editor, args []string) error {
+			line, _ := strconv.Atoi(args[0])
+			col, _ := strconv.Atoi(args[1])
+			if line < 0 {
+				line = 0
+			}
+			if line >= len(e.Buffer.Lines) {
+				line = len(e.Buffer.Lines) - 1
+			}
+			if line < 0 {
+				line = 0
+			}
+			if col < 0 {
+				col = 0
+			}
+			if col > e.LineLen(line) {
+				col = e.LineLen(line)
+			}
+			e.Cursor.Line = line
+			e.Cursor.Col = col
 			return nil
 		})
 }

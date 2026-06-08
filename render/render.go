@@ -24,6 +24,25 @@ func visibleLines() int {
 	return contentHeight / FontSize
 }
 
+func maxScroll(e *editor.Editor) int {
+	vl := visibleLines()
+	ms := len(e.Buffer.Lines) - vl
+	if ms < 0 {
+		ms = 0
+	}
+	return ms
+}
+
+// ClampScroll ensures ScrollY stays within valid bounds.
+func ClampScroll(e *editor.Editor) {
+	if e.Viewport.ScrollY < 0 {
+		e.Viewport.ScrollY = 0
+	}
+	if e.Viewport.ScrollY > maxScroll(e) {
+		e.Viewport.ScrollY = maxScroll(e)
+	}
+}
+
 // updateScroll adjusts ScrollY so the cursor is always visible.
 func updateScroll(e *editor.Editor) {
 	vl := visibleLines()
@@ -33,9 +52,7 @@ func updateScroll(e *editor.Editor) {
 	if e.Cursor.Line >= e.Viewport.ScrollY+vl {
 		e.Viewport.ScrollY = e.Cursor.Line - vl + 1
 	}
-	if e.Viewport.ScrollY < 0 {
-		e.Viewport.ScrollY = 0
-	}
+	ClampScroll(e)
 }
 
 // drawBottomBar renders the status line (normal mode) or command bar (command mode).
@@ -74,6 +91,40 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 }
 
 // Render draws the editor state to the screen.
+// ClickToLineCol translates screen coordinates to a buffer position.
+// Clicking in the gutter clamps to column 0.
+func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int) {
+	statusHeight := FontSize + 4
+	if y >= float32(ScreenHeight-statusHeight) {
+		return e.Cursor.Line, e.Cursor.Col // clicked status bar → ignore
+	}
+
+	line := e.Viewport.ScrollY + int(y/FontSize)
+	if line >= len(e.Buffer.Lines) {
+		line = len(e.Buffer.Lines) - 1
+	}
+	if line < 0 {
+		line = 0
+	}
+
+	targetX := x - GutterWidth
+	if targetX <= 0 {
+		return line, 0
+	}
+
+	runes := []rune(e.Buffer.Lines[line])
+	penX := float32(0)
+	for col, r := range runes {
+		chStr := string(r)
+		glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
+		if penX+glyphW/2 > targetX {
+			return line, col
+		}
+		penX += glyphW
+	}
+	return line, len(runes)
+}
+
 func Render(e *editor.Editor, font raylib.Font) {
 	updateScroll(e)
 
