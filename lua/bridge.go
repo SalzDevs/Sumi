@@ -12,6 +12,7 @@ import (
 	"sumi/editor"
 	"sumi/registry"
 	"sumi/render"
+	"sumi/theme"
 )
 
 //go:embed default.lua
@@ -117,6 +118,7 @@ func (b *Bridge) registerAPI() {
 	b.L.SetGlobal("editor", edTbl)
 
 	b.registerRenderAPI()
+	b.registerThemeAPI()
 }
 
 // -------------------------------------------------------------------------
@@ -931,6 +933,46 @@ func (b *Bridge) luaRenderColor(L *glua.LState) int {
 	}
 	packed := uint32(r)<<24 | uint32(g)<<16 | uint32(bl)<<8 | uint32(a)
 	L.Push(glua.LNumber(packed))
+	return 1
+}
+
+// -------------------------------------------------------------------------
+// Theme API
+// -------------------------------------------------------------------------
+
+func (b *Bridge) registerThemeAPI() {
+	themeTbl := b.L.NewTable()
+	b.L.SetField(themeTbl, "SetColor", b.L.NewFunction(b.luaThemeSetColor))
+	b.L.SetField(themeTbl, "GetColor", b.L.NewFunction(b.luaThemeGetColor))
+	b.L.SetField(themeTbl, "Names", b.L.NewFunction(b.luaThemeNames))
+	b.L.SetGlobal("theme", themeTbl)
+}
+
+func (b *Bridge) luaThemeSetColor(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	color := luaColorToRaylib(L.Get(3))
+	theme.Set(name, color)
+	return 0
+}
+
+func (b *Bridge) luaThemeGetColor(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	c := theme.Get(name)
+	packed := uint32(c.R)<<24 | uint32(c.G)<<16 | uint32(c.B)<<8 | uint32(c.A)
+	L.Push(glua.LNumber(packed))
+	return 1
+}
+
+func (b *Bridge) luaThemeNames(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	names := theme.Names()
+	tbl := b.L.NewTable()
+	for i, n := range names {
+		b.L.RawSetInt(tbl, i+1, glua.LString(n))
+	}
+	b.L.Push(tbl)
 	return 1
 }
 

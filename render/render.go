@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"sumi/editor"
+	"sumi/theme"
 
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
@@ -15,17 +16,6 @@ const (
 	GutterWidth   = 20
 	FontSize      = 20
 	FontSpacing   = 1
-)
-
-var (
-	bg        = raylib.NewColor(30, 30, 30, 255)
-	text      = raylib.NewColor(220, 220, 220, 255)
-	gutter    = raylib.NewColor(100, 100, 100, 255)
-	cursor    = raylib.NewColor(200, 200, 200, 255)
-	selectBg  = raylib.NewColor(80, 120, 180, 255)
-	cursorLn  = raylib.NewColor(45, 45, 45, 255)
-	statusBg  = raylib.NewColor(40, 40, 40, 255)
-	statusTxt = raylib.NewColor(200, 200, 200, 255)
 )
 
 var (
@@ -90,11 +80,11 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 	}
 	y := h - statusHeight
 
-	raylib.DrawRectangle(0, int32(y), int32(ScreenWidth()), int32(statusHeight), statusBg)
+	raylib.DrawRectangle(0, int32(y), int32(ScreenWidth()), int32(statusHeight), theme.Get("statusBg"))
 
 	if e.Mode == editor.ModeCommand {
 		prompt := fmt.Sprintf(":%s", e.CommandLine)
-		raylib.DrawTextEx(font, prompt, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), statusTxt)
+		raylib.DrawTextEx(font, prompt, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))
 		return
 	}
 
@@ -113,11 +103,11 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 	right := fmt.Sprintf("%d:%d/%d -- %s", e.Cursor.Line+1, e.Cursor.Col+1, len(e.Buffer.Lines), modeStr)
 
 	// left side
-	raylib.DrawTextEx(font, left, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), statusTxt)
+	raylib.DrawTextEx(font, left, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))
 
 	// right side
 	rightWidth := raylib.MeasureTextEx(font, right, float32(FontSize), float32(FontSpacing)).X
-	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(ScreenWidth()) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), statusTxt)
+	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(ScreenWidth()) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))
 }
 
 // Render draws the editor state to the screen.
@@ -163,7 +153,7 @@ func Render(e *editor.Editor, font raylib.Font) {
 	updateScroll(e)
 
 	raylib.BeginDrawing()
-	raylib.ClearBackground(bg)
+	raylib.ClearBackground(theme.Get("bg"))
 
 	isDrawing = true
 	currentFont = font
@@ -190,10 +180,10 @@ func Render(e *editor.Editor, font raylib.Font) {
 
 		// gutter number
 		numStr := fmt.Sprintf("%d", lineIdx+1)
-		raylib.DrawTextEx(font, numStr, raylib.Vector2{X: 0, Y: penY}, float32(FontSize), float32(FontSpacing), gutter)
+		raylib.DrawTextEx(font, numStr, raylib.Vector2{X: 0, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("gutter"))
 
 		if lineIdx == e.Cursor.Line {
-			raylib.DrawRectangle(int32(GutterWidth), int32(penY), int32(ScreenWidth()-GutterWidth), FontSize, cursorLn)
+			raylib.DrawRectangle(int32(GutterWidth), int32(penY), int32(ScreenWidth()-GutterWidth), FontSize, theme.Get("cursorLn"))
 		}
 
 		runes := []rune(line)
@@ -206,9 +196,9 @@ func Render(e *editor.Editor, font raylib.Font) {
 			chStr := string(r)
 			glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
 			if e.IsSelected(lineIdx, col) {
-				raylib.DrawRectangle(int32(penX), int32(penY), int32(glyphW), FontSize, selectBg)
+				raylib.DrawRectangle(int32(penX), int32(penY), int32(glyphW), FontSize, theme.Get("selectBg"))
 			}
-			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), text)
+			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("text"))
 			penX += glyphW
 		}
 
@@ -223,7 +213,7 @@ func Render(e *editor.Editor, font raylib.Font) {
 
 	// cursor
 	if cursorVisible {
-		raylib.DrawRectangle(int32(cursorX), int32(cursorY), 2, FontSize, cursor)
+		raylib.DrawRectangle(int32(cursorX), int32(cursorY), 2, FontSize, theme.Get("cursor"))
 	}
 
 	drawBottomBar(e, font)

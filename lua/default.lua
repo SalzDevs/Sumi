@@ -126,6 +126,18 @@ keymap:Register("visual", keys.UP, "move_up")
 keymap:Register("visual", keys.BACKSPACE, "backspace")
 
 -- -------------------------------------------------------------------------
+-- Theme customization (uncomment to override default colors)
+-- -------------------------------------------------------------------------
+theme:SetColor("bg", "#1e1e1e")
+theme:SetColor("text", "#d4d4d4")
+theme:SetColor("cursor", "#ff0044")
+theme:SetColor("selectBg", "#264f78")
+theme:SetColor("cursorLn", "#2d2d2d")
+theme:SetColor("statusBg", "#252526")
+theme:SetColor("statusTxt", "#cccccc")
+theme:SetColor("gutter", "#858585")
+
+-- -------------------------------------------------------------------------
 -- Render hook example (uncomment to enable a custom overlay)
 -- -------------------------------------------------------------------------
 --[[
