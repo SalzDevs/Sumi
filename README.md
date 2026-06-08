@@ -1,0 +1,151 @@
+# Sumi
+
+A minimal text editor with a Lua SDK. Ship it bare, configure 99% in `init.lua`.
+
+## Build
+
+Requires Go 1.23+ and raylib (installed automatically via Go modules).
+
+```bash
+git clone https://github.com/SalzDevs/Sumi.git
+cd Sumi
+go build .
+```
+
+## Run
+
+```bash
+./sumi                    # open ./test.txt
+./sumi path/to/file.txt   # open specific file
+```
+
+## Configuration
+
+On startup, Sumi loads `~/.config/sumi/init.lua`. If it doesn't exist, the embedded `default.lua` is used.
+
+Create your configuration:
+
+```bash
+mkdir -p ~/.config/sumi
+cat > ~/.config/sumi/init.lua << 'EOF'
+-- Rebind arrow keys to inverted
+keymap:Register("normal", keys.LEFT, "move_right")
+keymap:Register("normal", keys.RIGHT, "move_left")
+
+-- Register a custom command
+commands:Register("uppercase_line", "Uppercase current line", 0, 0, function(e, args)
+    local n = e.Cursor:Line()
+    e.Buffer:SetLine(n, string.upper(e.Buffer:GetLine(n)))
+end)
+
+keymap:Register("normal", keys.HOME, "uppercase_line")
+EOF
+```
+
+Restart Sumi. No recompile.
+
+## Lua API
+
+### `editor`
+
+| Method | Description |
+|---|---|
+| `editor:Mode()` | Returns `"normal"`, `"command"`, or `"visual"` |
+| `editor:SetMode(mode)` | Set mode string |
+| `editor:LineCount()` | Number of lines in buffer |
+| `editor:Modified()` | Boolean |
+| `editor:LoadFile(path)` | Load file; returns error string or nil |
+| `editor:SaveFile()` | Save file; returns error string or nil |
+| `editor:Undo()` | Undo last change |
+| `editor:Quit()` | Set quit flag |
+| `editor:EnterVisual()` | Enter visual mode at cursor |
+| `editor:ClearVisual()` | Cancel visual mode |
+| `editor:SetVisualAnchor()` | Set anchor to cursor position |
+| `editor:SelectWordAt(line, col)` | Select word at 1-based position |
+| `editor:SelectLineAt(line)` | Select entire 1-based line |
+| `editor:Backspace()` | Delete character before cursor |
+| `editor:InsertNewline()` | Insert newline |
+| `editor:InsertChar(ch)` | Insert single character string |
+| `editor:Yank()` | Copy selection to clipboard; returns error or nil |
+| `editor:Paste()` | Paste clipboard at cursor |
+| `editor:DeleteSelection()` | Delete visual selection |
+| `editor:CommandLine()` | Get current command line string |
+| `editor:SetCommandLine(text)` | Set command line string |
+| `editor:CommandLineBackspace()` | Delete last command character |
+
+### `editor.Buffer`
+
+| Method | Description |
+|---|---|
+| `Buffer:GetLine(n)` | Get 1-based line as string |
+| `Buffer:SetLine(n, text)` | Replace 1-based line |
+| `Buffer:LineCount()` | Number of lines |
+| `Buffer:InsertChar(line, col, ch)` | Insert char at 1-based position |
+| `Buffer:DeleteChar(line, col)` | Delete char at 1-based position |
+
+### `editor.Cursor`
+
+| Method | Description |
+|---|---|
+| `Cursor:Line()` | 1-based line |
+| `Cursor:Col()` | 1-based column |
+| `Cursor:Goto(line, col)` | Move cursor; clamps to valid bounds |
+| `Cursor:MoveLeft()` | |
+| `Cursor:MoveRight()` | |
+| `Cursor:MoveUp()` | |
+| `Cursor:MoveDown()` | |
+
+### `commands`
+
+| Method | Description |
+|---|---|
+| `commands:Register(name, desc, minArgs, maxArgs, handler)` | Register a command. Handler receives `(editor, args[])` and returns `nil` or error string. |
+| `commands:List()` | Returns array of registered command names |
+
+### `keymap`
+
+| Method | Description |
+|---|---|
+| `keymap:Register(mode, keyCode, commandName)` | Bind a key to a command in a mode |
+
+### `keys` constants
+
+`RIGHT`, `LEFT`, `DOWN`, `UP`, `ENTER`, `ESCAPE`, `BACKSPACE`, `HOME`, `END`
+
+## Architecture
+
+| Layer | Language | Responsibility |
+|---|---|---|
+| Engine | Go | Buffer, cursor, undo, file I/O, render loop, input dispatch, OS clipboard, Lua bridge |
+| Commands | Lua | Movement, editing, mode switching, file operations, undo — everything the editor does |
+| Keymaps | Lua | All key bindings |
+| Theme | Go (default) | Colors defined in `render/render.go` as variables; theme system planned as Lua extension |
+
+The engine exposes primitives. The personality lives in Lua.
+
+## Default Controls
+
+| Key | Action |
+|---|---|
+| Arrows | Move cursor |
+| Home / End | Start / end of line |
+| Backspace | Delete before cursor |
+| Enter | Insert newline |
+| `:` | Enter command mode |
+| `Esc` | Return to normal mode |
+| `Cmd+V` | Enter visual mode |
+| `d` (visual) | Delete selection |
+| `y` (visual) | Yank to clipboard |
+| `p` (normal) | Paste |
+| `Cmd+R` | Undo |
+| `Cmd+S` | Save |
+| Mouse click | Position cursor |
+| Mouse drag | Visual selection |
+| Double-click | Select word |
+| Triple-click | Select line |
+| Right-click | Extend selection |
+| Scroll wheel | Scroll viewport |
+
+## License
+
+MIT
