@@ -4,10 +4,14 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	glua "github.com/yuin/gopher-lua"
+	raylib "github.com/gen2brain/raylib-go/raylib"
 	"sumi/editor"
 	"sumi/registry"
+	"sumi/render"
 )
 
 //go:embed default.lua
@@ -15,11 +19,12 @@ var defaultLua string
 
 // Bridge connects the Go engine to the Lua configuration layer.
 type Bridge struct {
-	L       *glua.LState
-	Editor  *editor.Editor
-	CmdReg  *registry.CommandRegistry
-	KeyReg  *registry.KeymapRegistry
-	luaCmds map[string]*glua.LFunction // command name → Lua handler
+	L            *glua.LState
+	Editor       *editor.Editor
+	CmdReg       *registry.CommandRegistry
+	KeyReg       *registry.KeymapRegistry
+	luaCmds      map[string]*glua.LFunction // command name → Lua handler
+	renderHookFn *glua.LFunction
 }
 
 // NewBridge creates a Lua state and exposes the editor API.
@@ -110,6 +115,8 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(edTbl, "Cursor", curTbl)
 
 	b.L.SetGlobal("editor", edTbl)
+
+	b.registerRenderAPI()
 }
 
 // -------------------------------------------------------------------------
@@ -771,6 +778,160 @@ func (b *Bridge) luaCursorMoveDown(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	b.Editor.MoveDown()
 	return 0
+}
+
+// -------------------------------------------------------------------------
+// Render API
+// -------------------------------------------------------------------------
+
+func (b *Bridge) registerRenderAPI() {
+	renderTbl := b.L.NewTable()
+	b.L.SetField(renderTbl, "SetCallback", b.L.NewFunction(b.luaRenderSetCallback))
+	b.L.SetField(renderTbl, "DrawRectangle", b.L.NewFunction(b.luaRenderDrawRectangle))
+	b.L.SetField(renderTbl, "DrawText", b.L.NewFunction(b.luaRenderDrawText))
+	b.L.SetField(renderTbl, "DrawLine", b.L.NewFunction(b.luaRenderDrawLine))
+	b.L.SetField(renderTbl, "MeasureText", b.L.NewFunction(b.luaRenderMeasureText))
+	b.L.SetField(renderTbl, "ScreenWidth", b.L.NewFunction(b.luaRenderScreenWidth))
+	b.L.SetField(renderTbl, "ScreenHeight", b.L.NewFunction(b.luaRenderScreenHeight))
+	b.L.SetField(renderTbl, "Color", b.L.NewFunction(b.luaRenderColor))
+	b.L.SetGlobal("render", renderTbl)
+}
+
+func (b *Bridge) luaRenderSetCallback(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	fn := L.CheckFunction(2)
+	b.renderHookFn = fn
+	b.Editor.RenderHook = func() {
+		if b.renderHookFn == nil {
+			return
+		}
+		b.L.Push(b.renderHookFn)
+		if err := b.L.PCall(0, 0, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "render hook error: %v\n", err)
+			b.renderHookFn = nil
+			b.Editor.RenderHook = nil
+		}
+	}
+	return 0
+}
+
+func luaColorToRaylib(v glua.LValue) raylib.Color {
+	if n, ok := v.(glua.LNumber); ok {
+		c := uint32(n)
+		return raylib.NewColor(
+			uint8((c>>24)&0xFF),
+			uint8((c>>16)&0xFF),
+			uint8((c>>8)&0xFF),
+			uint8(c&0xFF),
+		)
+	}
+	s := strings.TrimPrefix(string(v.(glua.LString)), "#")
+	if len(s) == 6 {
+		if v, err := strconv.ParseUint(s, 16, 32); err == nil {
+			return raylib.NewColor(
+				uint8((v>>16)&0xFF),
+				uint8((v>>8)&0xFF),
+				uint8(v&0xFF),
+				255,
+			)
+		}
+	}
+	if len(s) == 8 {
+		if v, err := strconv.ParseUint(s, 16, 32); err == nil {
+			return raylib.NewColor(
+				uint8((v>>24)&0xFF),
+				uint8((v>>16)&0xFF),
+				uint8((v>>8)&0xFF),
+				uint8(v&0xFF),
+			)
+		}
+	}
+	return raylib.NewColor(255, 255, 255, 255)
+}
+
+func (b *Bridge) luaRenderDrawRectangle(L *glua.LState) int {
+	if !render.IsDrawing() {
+		return 0
+	}
+	_ = L.CheckAny(1)
+	x := float32(L.CheckNumber(2))
+	y := float32(L.CheckNumber(3))
+	w := float32(L.CheckNumber(4))
+	h := float32(L.CheckNumber(5))
+	color := luaColorToRaylib(L.Get(6))
+	raylib.DrawRectangle(int32(x), int32(y), int32(w), int32(h), color)
+	return 0
+}
+
+func (b *Bridge) luaRenderDrawText(L *glua.LState) int {
+	if !render.IsDrawing() {
+		return 0
+	}
+	_ = L.CheckAny(1)
+	text := L.CheckString(2)
+	x := float32(L.CheckNumber(3))
+	y := float32(L.CheckNumber(4))
+	size := float32(L.CheckNumber(5))
+	color := luaColorToRaylib(L.Get(6))
+	font := render.ActiveFont()
+	if font.Texture.ID == 0 {
+		font = raylib.GetFontDefault()
+	}
+	raylib.DrawTextEx(font, text, raylib.Vector2{X: x, Y: y}, size, float32(render.FontSpacing), color)
+	return 0
+}
+
+func (b *Bridge) luaRenderDrawLine(L *glua.LState) int {
+	if !render.IsDrawing() {
+		return 0
+	}
+	_ = L.CheckAny(1)
+	x1 := float32(L.CheckNumber(2))
+	y1 := float32(L.CheckNumber(3))
+	x2 := float32(L.CheckNumber(4))
+	y2 := float32(L.CheckNumber(5))
+	color := luaColorToRaylib(L.Get(6))
+	raylib.DrawLine(int32(x1), int32(y1), int32(x2), int32(y2), color)
+	return 0
+}
+
+func (b *Bridge) luaRenderMeasureText(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	text := L.CheckString(2)
+	size := float32(L.CheckNumber(3))
+	font := render.ActiveFont()
+	if font.Texture.ID == 0 {
+		font = raylib.GetFontDefault()
+	}
+	w := raylib.MeasureTextEx(font, text, size, float32(render.FontSpacing)).X
+	L.Push(glua.LNumber(w))
+	return 1
+}
+
+func (b *Bridge) luaRenderScreenWidth(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(render.ScreenWidth()))
+	return 1
+}
+
+func (b *Bridge) luaRenderScreenHeight(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(render.ScreenHeight()))
+	return 1
+}
+
+func (b *Bridge) luaRenderColor(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	r := uint8(L.CheckNumber(2))
+	g := uint8(L.CheckNumber(3))
+	bl := uint8(L.CheckNumber(4))
+	a := uint8(255)
+	if L.GetTop() >= 5 {
+		a = uint8(L.CheckNumber(5))
+	}
+	packed := uint32(r)<<24 | uint32(g)<<16 | uint32(bl)<<8 | uint32(a)
+	L.Push(glua.LNumber(packed))
+	return 1
 }
 
 // -------------------------------------------------------------------------

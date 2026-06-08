@@ -124,3 +124,18 @@ keymap:Register("visual", keys.RIGHT, "move_right")
 keymap:Register("visual", keys.DOWN, "move_down")
 keymap:Register("visual", keys.UP, "move_up")
 keymap:Register("visual", keys.BACKSPACE, "backspace")
+
+-- -------------------------------------------------------------------------
+-- Render hook example (uncomment to enable a custom overlay)
+-- -------------------------------------------------------------------------
+--[[
+local red = render:Color(255, 0, 0)
+local dark = "#1a1a1a"
+render:SetCallback(function()
+    local w = render:ScreenWidth()
+    local text = "Mode: " .. editor:Mode()
+    local tw = render:MeasureText(text, 16)
+    render:DrawRectangle(w - tw - 20, 10, tw + 16, 24, dark)
+    render:DrawText(text, w - tw - 12, 14, 16, red)
+end)
+--]]

@@ -112,6 +112,19 @@ Restart Sumi. No recompile.
 
 `RIGHT`, `LEFT`, `DOWN`, `UP`, `ENTER`, `ESCAPE`, `BACKSPACE`, `HOME`, `END`
 
+### `render`
+
+| Method | Description |
+|---|---|
+| `render:SetCallback(fn)` | Set a Lua function called every frame after the editor renders but before the frame ends. Use for custom overlays. |
+| `render:Color(r, g, b, a?)` | Pack a color into an integer (default `a=255`). |
+| `render:DrawRectangle(x, y, w, h, color)` | Draw a filled rectangle. `color` is a packed color integer or a `"#RRGGBB"` hex string. |
+| `render:DrawText(text, x, y, size, color)` | Draw text at `(x, y)` with font `size`. |
+| `render:DrawLine(x1, y1, x2, y2, color)` | Draw a line between two points. |
+| `render:MeasureText(text, size)` | Returns text width in pixels. |
+| `render:ScreenWidth()` | Current window width. |
+| `render:ScreenHeight()` | Current window height. |
+
 ## Architecture
 
 | Layer | Language | Responsibility |
@@ -119,7 +132,7 @@ Restart Sumi. No recompile.
 | Engine | Go | Buffer, cursor, undo, file I/O, render loop, input dispatch, OS clipboard, Lua bridge |
 | Commands | Lua | Movement, editing, mode switching, file operations, undo — everything the editor does |
 | Keymaps | Lua | All key bindings |
-| Theme | Go (default) | Colors defined in `render/render.go` as variables; theme system planned as Lua extension |
+| Theme | Go + Lua hooks | Colors defined in `render/render.go` as variables; Lua `render` API allows custom overlays |
 
 The engine exposes primitives. The personality lives in Lua.
 
