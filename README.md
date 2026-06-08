@@ -144,6 +144,22 @@ Slot names: `bg`, `text`, `gutter`, `cursor`, `selectBg`, `cursorLn`, `statusBg`
 Default status bar (left): `filename [+]`
 Default status bar (right): `line:col/total -- MODE`
 
+## Plugin directory
+
+Any `*.lua` file placed in `~/.config/sumi/plugins/` is automatically executed at startup, after `init.lua`. Files are loaded in alphabetical order. One broken plugin does not stop others from loading.
+
+Example: create `~/.config/sumi/plugins/timestamp.lua`:
+
+```lua
+commands:Register("insert_timestamp", "Insert current timestamp", 0, 0, function(e, args)
+    local ts = os.date("%Y-%m-%d %H:%M:%S")
+    for i = 1, #ts do
+        e:InsertChar(string.byte(ts, i))
+    end
+end)
+keymap:Register("normal", keys.F5, "insert_timestamp")
+```
+
 ## Architecture
 
 | Layer | Language | Responsibility |

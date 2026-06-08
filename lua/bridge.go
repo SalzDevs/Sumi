@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -1042,6 +1043,34 @@ func (b *Bridge) LoadUserConfig() error {
 		return nil
 	}
 	return b.L.DoFile(path)
+}
+
+// LoadPlugins scans ~/.config/sumi/plugins/ and executes every .lua file.
+// Files are loaded in alphabetical order. Errors are printed to stderr
+// but do not stop loading of subsequent plugins.
+func (b *Bridge) LoadPlugins() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(home, ".config", "sumi", "plugins")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return // directory doesn't exist, that's fine
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".lua") {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		if err := b.L.DoFile(path); err != nil {
+			fmt.Fprintf(os.Stderr, "plugin %s: %v\n", name, err)
+		}
+	}
 }
 
 // Close shuts down the Lua state.

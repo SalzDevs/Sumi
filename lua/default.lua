@@ -244,7 +244,21 @@ end)
 --]]
 
 -- -------------------------------------------------------------------------
--- Example 9: Invert arrow keys (vim-like or just playful)
+-- Example 9: Plugins — auto-loaded from ~/.config/sumi/plugins/*.lua
+-- -------------------------------------------------------------------------
+-- Drop .lua files into the plugins directory and they run on startup.
+-- Example plugin: ~/.config/sumi/plugins/timestamp.lua
+--
+--     commands:Register("insert_timestamp", "Insert timestamp", 0, 0, function(e, args)
+--         local ts = os.date("%Y-%m-%d %H:%M:%S")
+--         for i = 1, #ts do
+--             e:InsertChar(string.byte(ts, i))
+--         end
+--     end)
+--     keymap:Register("normal", keys.F5, "insert_timestamp")
+
+-- -------------------------------------------------------------------------
+-- Example 10: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

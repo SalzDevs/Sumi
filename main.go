@@ -250,6 +250,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Lua user config failed: %v\n", err)
 	}
 
+	bridge.LoadPlugins()
+
 	if len(os.Args) > 1 {
 		_ = ed.LoadFile(os.Args[1])
 	} else {
