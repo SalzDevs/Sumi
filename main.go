@@ -29,6 +29,13 @@ var repeatableKeys = map[int32]bool{
 
 var keyTimers = make(map[int32]int)
 
+var (
+	dragStartX     float32
+	dragStartY     float32
+	isDragging     bool
+	dragThreshold  = float32(3.0)
+)
+
 func shouldFire(key int32) bool {
 	if !raylib.IsKeyDown(key) {
 		keyTimers[key] = 0
@@ -89,9 +96,43 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 	if e.Mode != editor.ModeCommand {
 		if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
 			pos := raylib.GetMousePosition()
-			line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
-			_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+			dragStartX = pos.X
+			dragStartY = pos.Y
+			isDragging = false
 		}
+
+		if raylib.IsMouseButtonDown(raylib.MouseLeftButton) {
+			pos := raylib.GetMousePosition()
+			dx := pos.X - dragStartX
+			dy := pos.Y - dragStartY
+			distSq := dx*dx + dy*dy
+
+			if !isDragging && distSq > dragThreshold*dragThreshold {
+				isDragging = true
+				// Enter visual mode at drag start
+				line, col := render.ClickToLineCol(dragStartX, dragStartY, e, font)
+				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+				if e.Mode != editor.ModeVisual {
+					_ = cmdReg.Execute(e, "enter_visual_mode", nil)
+				}
+			}
+
+			if isDragging {
+				line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
+				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+			}
+		}
+
+		if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) {
+			if !isDragging {
+				// Simple click: just move cursor
+				pos := raylib.GetMousePosition()
+				line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
+				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+			}
+			isDragging = false
+		}
+
 		wheel := raylib.GetMouseWheelMove()
 		if wheel != 0 {
 			e.Viewport.ScrollY -= int(wheel * 3)
