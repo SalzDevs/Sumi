@@ -96,6 +96,7 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(bufTbl, "LineCount", b.L.NewFunction(b.luaBufferLineCount))
 	b.L.SetField(bufTbl, "InsertChar", b.L.NewFunction(b.luaBufferInsertChar))
 	b.L.SetField(bufTbl, "DeleteChar", b.L.NewFunction(b.luaBufferDeleteChar))
+	b.L.SetField(bufTbl, "FilePath", b.L.NewFunction(b.luaBufferFilePath))
 	b.L.SetField(edTbl, "Buffer", bufTbl)
 
 	// editor editing
@@ -340,6 +341,11 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 
 	// Buffer
 	bufTbl := b.L.NewTable()
+	b.L.SetField(bufTbl, "FilePath", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LString(e.Buffer.FilePath))
+		return 1
+	}))
 	b.L.SetField(bufTbl, "GetLine", b.L.NewFunction(func(L *glua.LState) int {
 		_ = L.CheckAny(1)
 		n := L.CheckInt(2) - 1
@@ -723,6 +729,12 @@ func (b *Bridge) luaBufferDeleteChar(L *glua.LState) int {
 		}
 	}
 	return 0
+}
+
+func (b *Bridge) luaBufferFilePath(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LString(b.Editor.Buffer.FilePath))
+	return 1
 }
 
 // -------------------------------------------------------------------------

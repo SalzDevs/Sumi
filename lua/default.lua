@@ -231,7 +231,7 @@ end)
 -- -------------------------------------------------------------------------
 --[[
 statusline:Set(function()
-    local name = editor.Buffer.FilePath
+    local name = editor.Buffer:FilePath()
     if name == "" then name = "[No Name]" end
     if editor:Modified() then name = name .. " ●" end
     local left = name

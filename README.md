@@ -77,6 +77,7 @@ Restart Sumi. No recompile.
 
 | Method | Description |
 |---|---|
+| `Buffer:FilePath()` | Path of the current file, or empty string |
 | `Buffer:GetLine(n)` | Get 1-based line as string |
 | `Buffer:SetLine(n, text)` | Replace 1-based line |
 | `Buffer:LineCount()` | Number of lines |
