@@ -319,7 +319,51 @@ end)
 --     theme:SetColor("text", "#cccccc")
 
 -- -------------------------------------------------------------------------
--- Example 14: Invert arrow keys (vim-like or just playful)
+-- Search commands
+-- -------------------------------------------------------------------------
+commands:Register("search", "Set search pattern", 1, 1, function(e, args)
+    e:SetSearchPattern(args[1])
+end)
+
+commands:Register("clear_search", "Clear search pattern", 0, 0, function(e, args)
+    e:ClearSearch()
+end)
+
+commands:Register("find_next", "Jump to next search match", 0, 0, function(e, args)
+    if not e:FindNext() then
+        return "pattern not found"
+    end
+end)
+
+commands:Register("find_prev", "Jump to previous search match", 0, 0, function(e, args)
+    if not e:FindPrev() then
+        return "pattern not found"
+    end
+end)
+
+keymap:Register("normal", keys.F3, "find_next")
+keymap:Register("normal", keys.F4, "find_prev")
+
+-- -------------------------------------------------------------------------
+-- Example 14: Search — type "/pattern" in command mode
+-- -------------------------------------------------------------------------
+--[[
+commands:Register("slash_search", "Search for pattern", 1, 1, function(e, args)
+    e:SetSearchPattern(args[1])
+    e:FindNext()
+end)
+
+-- Bind '/' in normal mode to enter command mode with "/" pre-filled
+commands:Register("enter_search_mode", "Enter search command mode", 0, 0, function(e, args)
+    e:SetMode("command")
+    e:SetCommandLine("/")
+end)
+keymap:Register("normal", 47, "enter_search_mode")  -- 47 is ASCII '/'
+-- Then in command mode, Enter executes slash_search with the text after /
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 15: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

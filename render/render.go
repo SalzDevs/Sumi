@@ -10,6 +10,29 @@ import (
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
+// searchMatches returns all start positions of pattern in text.
+func searchMatches(text, pattern string) []int {
+	if pattern == "" {
+		return nil
+	}
+	var matches []int
+	runes := []rune(text)
+	strText := string(runes)
+	start := 0
+	for {
+		idx := strings.Index(strText[start:], pattern)
+		if idx < 0 {
+			break
+		}
+		matches = append(matches, start+idx)
+		start += idx + 1
+		if start > len(strText) {
+			break
+		}
+	}
+	return matches
+}
+
 const (
 	DefaultWidth  = 800
 	DefaultHeight = 400
@@ -224,6 +247,26 @@ func Render(e *editor.Editor, font raylib.Font) {
 						lineColors[i] = c
 					}
 				}
+			}
+		}
+
+		// Draw search match backgrounds (behind text, on top of normal background)
+		if e.SearchPattern != "" {
+			for _, matchStart := range searchMatches(line, e.SearchPattern) {
+				matchEnd := matchStart + len([]rune(e.SearchPattern))
+				if matchEnd > len(runes) {
+					matchEnd = len(runes)
+				}
+				// Measure pixel width of the match
+				matchX := penX
+				for i := 0; i < matchStart; i++ {
+					matchX += raylib.MeasureTextEx(font, string(runes[i]), float32(FontSize), float32(FontSpacing)).X
+				}
+				matchW := float32(0)
+				for i := matchStart; i < matchEnd && i < len(runes); i++ {
+					matchW += raylib.MeasureTextEx(font, string(runes[i]), float32(FontSize), float32(FontSpacing)).X
+				}
+				raylib.DrawRectangle(int32(matchX), int32(penY), int32(matchW), FontSize, theme.Get("searchBg"))
 			}
 		}
 

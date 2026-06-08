@@ -148,6 +148,13 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(edTbl, "SetSetting", b.L.NewFunction(b.luaEditorSetSetting))
 	b.L.SetField(edTbl, "GetSetting", b.L.NewFunction(b.luaEditorGetSetting))
 
+	// editor search
+	b.L.SetField(edTbl, "SetSearchPattern", b.L.NewFunction(b.luaEditorSetSearchPattern))
+	b.L.SetField(edTbl, "SearchPattern", b.L.NewFunction(b.luaEditorSearchPattern))
+	b.L.SetField(edTbl, "ClearSearch", b.L.NewFunction(b.luaEditorClearSearch))
+	b.L.SetField(edTbl, "FindNext", b.L.NewFunction(b.luaEditorFindNext))
+	b.L.SetField(edTbl, "FindPrev", b.L.NewFunction(b.luaEditorFindPrev))
+
 	b.L.SetGlobal("editor", edTbl)
 
 	b.registerRenderAPI()
@@ -827,6 +834,38 @@ func (b *Bridge) luaCursorMoveDown(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	b.Editor.MoveDown()
 	return 0
+}
+
+func (b *Bridge) luaEditorSetSearchPattern(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.SetSearchPattern(L.CheckString(2))
+	return 0
+}
+
+func (b *Bridge) luaEditorSearchPattern(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LString(b.Editor.SearchPattern))
+	return 1
+}
+
+func (b *Bridge) luaEditorClearSearch(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.ClearSearch()
+	return 0
+}
+
+func (b *Bridge) luaEditorFindNext(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	found := b.Editor.FindNext()
+	L.Push(glua.LBool(found))
+	return 1
+}
+
+func (b *Bridge) luaEditorFindPrev(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	found := b.Editor.FindPrev()
+	L.Push(glua.LBool(found))
+	return 1
 }
 
 func (b *Bridge) luaEditorSetSetting(L *glua.LState) int {

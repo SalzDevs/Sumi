@@ -13,6 +13,7 @@ var current = map[string]raylib.Color{
 	"cursorLn":  raylib.NewColor(45, 45, 45, 255),
 	"statusBg":  raylib.NewColor(40, 40, 40, 255),
 	"statusTxt": raylib.NewColor(200, 200, 200, 255),
+	"searchBg":  raylib.NewColor(255, 200, 0, 180),
 }
 
 // Get returns the color for a named theme slot, or white if unknown.

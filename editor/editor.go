@@ -76,6 +76,7 @@ type Editor struct {
 	Settings    map[string]interface{}  // buffer-local settings
 	EventDispatcher func(name string, args ...interface{}) // called by core to fire Lua events
 	HighlightFn func(line int, text string) []HighlightSpan // syntax coloring; nil means no highlighting
+	SearchPattern string            // active search string; empty means no search
 }
 
 // HighlightSpan defines a colored rune range on a single line.
@@ -84,6 +85,108 @@ type HighlightSpan struct {
 	Start int
 	End   int
 	Color uint32 // packed 0xRRGGBBAA
+}
+
+// SetSearchPattern stores an active search string.
+func (e *Editor) SetSearchPattern(pattern string) {
+	e.SearchPattern = pattern
+}
+
+// ClearSearch removes the active search.
+func (e *Editor) ClearSearch() {
+	e.SearchPattern = ""
+}
+
+// findMatch searches for the pattern in the buffer starting from a line and column.
+// direction: +1 for forward, -1 for backward.
+// Returns true if a match was found and the cursor was moved.
+func (e *Editor) findMatch(startLine, startCol, direction int) bool {
+	if e.SearchPattern == "" {
+		return false
+	}
+	nLines := len(e.Buffer.Lines)
+	if nLines == 0 {
+		return false
+	}
+
+	if direction == 1 {
+		// Forward: start from current position, wrap to top if needed
+		line := startLine
+		col := startCol
+		for i := 0; i < nLines+1; i++ {
+			if line >= nLines {
+				line = 0
+				col = 0
+			}
+			text := e.Buffer.Lines[line]
+			runes := []rune(text)
+			searchFrom := 0
+			if line == startLine && i == 0 {
+				searchFrom = col + 1
+				if searchFrom > len(runes) {
+					searchFrom = len(runes)
+				}
+			}
+			if searchFrom < 0 {
+				searchFrom = 0
+			}
+			if searchFrom <= len(runes) {
+				rest := string(runes[searchFrom:])
+				idx := strings.Index(rest, e.SearchPattern)
+				if idx >= 0 {
+					e.Cursor.Line = line
+					e.Cursor.Col = searchFrom + idx
+					e.ResetDesired()
+					return true
+				}
+			}
+			line++
+			col = -1 // search from beginning on next line
+		}
+	} else {
+		// Backward: start before current position, wrap to bottom if needed
+		line := startLine
+		col := startCol
+		for i := 0; i < nLines+1; i++ {
+			if line < 0 {
+				line = nLines - 1
+				col = e.LineLen(line)
+			}
+			text := e.Buffer.Lines[line]
+			runes := []rune(text)
+			searchEnd := len(runes)
+			if line == startLine && i == 0 {
+				searchEnd = col
+				if searchEnd < 0 {
+					searchEnd = 0
+				}
+			}
+			if searchEnd > len(runes) {
+				searchEnd = len(runes)
+			}
+			prefix := string(runes[:searchEnd])
+			idx := strings.LastIndex(prefix, e.SearchPattern)
+			if idx >= 0 {
+				e.Cursor.Line = line
+				e.Cursor.Col = idx
+				e.ResetDesired()
+				return true
+			}
+			line--
+			col = -1
+		}
+	}
+	return false
+}
+
+// FindNext moves the cursor to the next search match.
+func (e *Editor) FindNext() bool {
+	return e.findMatch(e.Cursor.Line, e.Cursor.Col, 1)
+}
+
+// FindPrev moves the cursor to the previous search match.
+func (e *Editor) FindPrev() bool {
+	return e.findMatch(e.Cursor.Line, e.Cursor.Col, -1)
 }
 
 func NewEditor() *Editor {

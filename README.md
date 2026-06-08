@@ -197,6 +197,18 @@ Event names:
 |---|---|
 | `highlight:SetCallback(fn)` | Register a syntax highlighter. `fn(line_idx, text)` receives 1-based line number and text. It must return an array of span tables: `{start, end, color}` or `{start=start, end=end, color=color}`. Positions are 1-based character indices. Color can be a packed integer from `render:Color(...)` or a `"#RRGGBB"` hex string. |
 
+### `editor` search
+
+| Method | Description |
+|---|---|
+| `editor:SetSearchPattern(pattern)` | Set the active search string. All visible matches are highlighted automatically. |
+| `editor:SearchPattern()` | Get the current search string, or `""` if none. |
+| `editor:ClearSearch()` | Remove the active search and clear highlights. |
+| `editor:FindNext()` | Jump cursor to the next match. Returns `true` if found. |
+| `editor:FindPrev()` | Jump cursor to the previous match. Returns `true` if found. |
+
+Theme slot: `searchBg` (default: transparent yellow).
+
 ## Architecture
 
 | Layer | Language | Responsibility |
@@ -252,6 +264,8 @@ utils.say_hello("Sumi")
 | `d` (visual) | Delete selection |
 | `y` (visual) | Yank to clipboard |
 | `p` (normal) | Paste |
+| `F3` | Find next match |
+| `F4` | Find previous match |
 | `Cmd+R` | Undo |
 | `Cmd+S` | Save |
 | Mouse click | Position cursor |
