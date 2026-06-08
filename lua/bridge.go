@@ -695,6 +695,56 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 		return 0
 	}))
 
+	// render table (mouse only — drawing is global, but mouse queries are safe here)
+	renderTbl := b.L.NewTable()
+	b.L.SetField(renderTbl, "MouseX", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(int(raylib.GetMouseX())))
+		return 1
+	}))
+	b.L.SetField(renderTbl, "MouseY", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(int(raylib.GetMouseY())))
+		return 1
+	}))
+	b.L.SetField(renderTbl, "IsMouseDown", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		btn := L.CheckInt(2)
+		var key raylib.MouseButton
+		switch btn {
+		case 1:
+			key = raylib.MouseLeftButton
+		case 2:
+			key = raylib.MouseRightButton
+		case 3:
+			key = raylib.MouseMiddleButton
+		default:
+			L.Push(glua.LBool(false))
+			return 1
+		}
+		L.Push(glua.LBool(raylib.IsMouseButtonDown(key)))
+		return 1
+	}))
+	b.L.SetField(renderTbl, "IsMousePressed", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		btn := L.CheckInt(2)
+		var key raylib.MouseButton
+		switch btn {
+		case 1:
+			key = raylib.MouseLeftButton
+		case 2:
+			key = raylib.MouseRightButton
+		case 3:
+			key = raylib.MouseMiddleButton
+		default:
+			L.Push(glua.LBool(false))
+			return 1
+		}
+		L.Push(glua.LBool(raylib.IsMouseButtonPressed(key)))
+		return 1
+	}))
+	b.L.SetField(edTbl, "render", renderTbl)
+
 	b.L.Push(edTbl)
 }
 
@@ -1186,6 +1236,10 @@ func (b *Bridge) registerRenderAPI() {
 	b.L.SetField(renderTbl, "ScreenWidth", b.L.NewFunction(b.luaRenderScreenWidth))
 	b.L.SetField(renderTbl, "ScreenHeight", b.L.NewFunction(b.luaRenderScreenHeight))
 	b.L.SetField(renderTbl, "Color", b.L.NewFunction(b.luaRenderColor))
+	b.L.SetField(renderTbl, "MouseX", b.L.NewFunction(b.luaRenderMouseX))
+	b.L.SetField(renderTbl, "MouseY", b.L.NewFunction(b.luaRenderMouseY))
+	b.L.SetField(renderTbl, "IsMouseDown", b.L.NewFunction(b.luaRenderIsMouseDown))
+	b.L.SetField(renderTbl, "IsMousePressed", b.L.NewFunction(b.luaRenderIsMousePressed))
 	b.L.SetGlobal("render", renderTbl)
 }
 
@@ -1323,6 +1377,56 @@ func (b *Bridge) luaRenderColor(L *glua.LState) int {
 	}
 	packed := uint32(r)<<24 | uint32(g)<<16 | uint32(bl)<<8 | uint32(a)
 	L.Push(glua.LNumber(packed))
+	return 1
+}
+
+func (b *Bridge) luaRenderMouseX(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(int(raylib.GetMouseX())))
+	return 1
+}
+
+func (b *Bridge) luaRenderMouseY(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(int(raylib.GetMouseY())))
+	return 1
+}
+
+func (b *Bridge) luaRenderIsMouseDown(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	btn := L.CheckInt(2)
+	var key raylib.MouseButton
+	switch btn {
+	case 1:
+		key = raylib.MouseLeftButton
+	case 2:
+		key = raylib.MouseRightButton
+	case 3:
+		key = raylib.MouseMiddleButton
+	default:
+		L.Push(glua.LBool(false))
+		return 1
+	}
+	L.Push(glua.LBool(raylib.IsMouseButtonDown(key)))
+	return 1
+}
+
+func (b *Bridge) luaRenderIsMousePressed(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	btn := L.CheckInt(2)
+	var key raylib.MouseButton
+	switch btn {
+	case 1:
+		key = raylib.MouseLeftButton
+	case 2:
+		key = raylib.MouseRightButton
+	case 3:
+		key = raylib.MouseMiddleButton
+	default:
+		L.Push(glua.LBool(false))
+		return 1
+	}
+	L.Push(glua.LBool(raylib.IsMouseButtonPressed(key)))
 	return 1
 }
 

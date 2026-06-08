@@ -130,6 +130,10 @@ Restart Sumi. No recompile.
 | `render:MeasureText(text, size)` | Returns text width in pixels. |
 | `render:ScreenWidth()` | Current window width. |
 | `render:ScreenHeight()` | Current window height. |
+| `render:MouseX()` | Current mouse X position. |
+| `render:MouseY()` | Current mouse Y position. |
+| `render:IsMouseDown(button)` | `true` if mouse button is held. `button`: 1=left, 2=right, 3=middle. |
+| `render:IsMousePressed(button)` | `true` for the single frame the button was just pressed. Same button codes. |
 
 ### `theme`
 

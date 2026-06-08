@@ -21,6 +21,15 @@ highlight.
 `render:ScreenWidth`, `render:ScreenHeight`, `editor:LineCount`,
 `editor.Buffer:GetLine`, `editor.Cursor:Line`, `editor:ViewportScrollY`
 
+## clickable-button.lua
+
+A button that responds to left-clicks. Demonstrates hit-testing and
+frame-perfect click detection using `IsMouseDown` + `IsMousePressed`.
+
+**APIs used:** `render:MouseX`, `render:MouseY`, `render:IsMouseDown`,
+`render:IsMousePressed`, `render:DrawRectangle`, `render:DrawText`,
+`render:MeasureText`
+
 ## Writing your own
 
 The full API surface is documented in the main README. Common patterns:
