@@ -208,10 +208,9 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 		case editor.ModeCommand:
 			e.CommandLine += string(rune(ch))
 		case editor.ModeVisual:
-			switch ch {
-			case 'd':
+			if ch == 'd' {
 				_ = cmdReg.Execute(e, "visual_delete", nil)
-			case 'y':
+			} else if ch == 'y' {
 				_ = cmdReg.Execute(e, "yank", nil)
 			}
 		default: // normal mode
@@ -259,6 +258,7 @@ func main() {
 
 	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi)
 	raylib.InitWindow(render.DefaultWidth, render.DefaultHeight, "Sumi")
+	raylib.SetExitKey(0) // prevent Escape from closing the window
 	raylib.SetWindowMinSize(400, 200)
 	raylib.SetTargetFPS(60)
 	defer raylib.CloseWindow()
