@@ -65,7 +65,9 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 	for key := range repeatableKeys {
 		if shouldFire(key) {
 			if cmd, ok := keyReg.Resolve(mode, key); ok {
-				_ = cmdReg.Execute(e, cmd, nil)
+				if err := cmdReg.Execute(e, cmd, nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			}
 		}
 	}
@@ -78,22 +80,32 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 			continue
 		}
 		if cmd, ok := keyReg.Resolve(mode, key); ok {
-			_ = cmdReg.Execute(e, cmd, nil)
+			if err := cmdReg.Execute(e, cmd, nil); err != nil {
+				e.ShowError(err.Error())
+			}
 		}
 		// TODO: chords should eventually live in the keymap too
 		ctrl := raylib.IsKeyDown(raylib.KeyLeftControl) || raylib.IsKeyDown(raylib.KeyRightControl)
 		cmd := raylib.IsKeyDown(raylib.KeyLeftSuper) || raylib.IsKeyDown(raylib.KeyRightSuper)
 		if ctrl && key == raylib.KeyS {
-			_ = cmdReg.Execute(e, "w", nil)
+			if err := cmdReg.Execute(e, "w", nil); err != nil {
+				e.ShowError(err.Error())
+			}
 		}
 		if cmd && key == raylib.KeyR {
-			_ = cmdReg.Execute(e, "undo", nil)
+			if err := cmdReg.Execute(e, "undo", nil); err != nil {
+				e.ShowError(err.Error())
+			}
 		}
 		if cmd && key == raylib.KeyV {
 			if e.Mode == editor.ModeVisual {
-				_ = cmdReg.Execute(e, "cancel_visual", nil)
+				if err := cmdReg.Execute(e, "cancel_visual", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			} else {
-				_ = cmdReg.Execute(e, "enter_visual_mode", nil)
+				if err := cmdReg.Execute(e, "enter_visual_mode", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			}
 		}
 		key = raylib.GetKeyPressed()
@@ -209,16 +221,24 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 			e.CommandLine += string(rune(ch))
 		case editor.ModeVisual:
 			if ch == 'd' {
-				_ = cmdReg.Execute(e, "visual_delete", nil)
+				if err := cmdReg.Execute(e, "visual_delete", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			} else if ch == 'y' {
-				_ = cmdReg.Execute(e, "yank", nil)
+				if err := cmdReg.Execute(e, "yank", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			}
 		default: // normal mode
 			switch ch {
 			case ':':
-				_ = cmdReg.Execute(e, "enter_command_mode", nil)
+				if err := cmdReg.Execute(e, "enter_command_mode", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			case 'p':
-				_ = cmdReg.Execute(e, "paste", nil)
+				if err := cmdReg.Execute(e, "paste", nil); err != nil {
+					e.ShowError(err.Error())
+				}
 			default:
 				if ch >= 32 && ch < 127 {
 					e.InsertChar(rune(ch))

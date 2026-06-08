@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"sumi/editor"
 	"sumi/theme"
@@ -137,12 +138,21 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 		right = fmt.Sprintf("%d:%d/%d -- %s", e.Cursor.Line+1, e.Cursor.Col+1, len(e.Buffer.Lines), modeStr)
 	}
 
+	// Check for active transient error (3-second timeout)
+	if e.ErrorMsg != "" && time.Since(e.ErrorTime).Seconds() < 3 {
+		right = e.ErrorMsg
+	}
+
 	// left side
 	raylib.DrawTextEx(font, left, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))
 
 	// right side
+	rightColor := theme.Get("statusTxt")
+	if e.ErrorMsg != "" && time.Since(e.ErrorTime).Seconds() < 3 {
+		rightColor = theme.Get("errorTxt")
+	}
 	rightWidth := raylib.MeasureTextEx(font, right, float32(FontSize), float32(FontSpacing)).X
-	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(ScreenWidth()) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))
+	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(ScreenWidth()) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), rightColor)
 }
 
 // Render draws the editor state to the screen.

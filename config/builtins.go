@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -25,7 +23,7 @@ func executeCommandLine(e *editor.Editor, r *registry.CommandRegistry) {
 	}
 
 	if err := r.Execute(e, cmdName, args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		e.ShowError(err.Error())
 	}
 
 	e.CommandLine = ""

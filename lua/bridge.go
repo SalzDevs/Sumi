@@ -155,6 +155,10 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(edTbl, "FindNext", b.L.NewFunction(b.luaEditorFindNext))
 	b.L.SetField(edTbl, "FindPrev", b.L.NewFunction(b.luaEditorFindPrev))
 
+	// editor error display
+	b.L.SetField(edTbl, "ShowError", b.L.NewFunction(b.luaEditorShowError))
+	b.L.SetField(edTbl, "ClearError", b.L.NewFunction(b.luaEditorClearError))
+
 	b.L.SetGlobal("editor", edTbl)
 
 	b.registerRenderAPI()
@@ -866,6 +870,18 @@ func (b *Bridge) luaEditorFindPrev(L *glua.LState) int {
 	found := b.Editor.FindPrev()
 	L.Push(glua.LBool(found))
 	return 1
+}
+
+func (b *Bridge) luaEditorShowError(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.ShowError(L.CheckString(2))
+	return 0
+}
+
+func (b *Bridge) luaEditorClearError(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.ClearError()
+	return 0
 }
 
 func (b *Bridge) luaEditorSetSetting(L *glua.LState) int {

@@ -363,7 +363,14 @@ keymap:Register("normal", 47, "enter_search_mode")  -- 47 is ASCII '/'
 --]]
 
 -- -------------------------------------------------------------------------
--- Example 15: Invert arrow keys (vim-like or just playful)
+-- Example 15: Display a custom error message in the UI
+-- -------------------------------------------------------------------------
+-- commands:Register("warn", "Show a warning", 1, 1, function(e, args)
+--     e:ShowError("Warning: " .. args[1])
+-- end)
+
+-- -------------------------------------------------------------------------
+-- Example 16: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

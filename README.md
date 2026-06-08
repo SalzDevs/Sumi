@@ -209,6 +209,17 @@ Event names:
 
 Theme slot: `searchBg` (default: transparent yellow).
 
+### `editor` error display
+
+| Method | Description |
+|---|---|
+| `editor:ShowError(msg)` | Display a transient error message in the status bar. Auto-clears after 3 seconds. |
+| `editor:ClearError()` | Dismiss the error immediately. |
+
+Command errors ("pattern not found", "unsaved changes", etc.) are automatically shown in the status bar on the right side in red. No need to print to stderr.
+
+Theme slot: `errorTxt` (default: red).
+
 ## Architecture
 
 | Layer | Language | Responsibility |

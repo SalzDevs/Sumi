@@ -1,6 +1,9 @@
 package editor
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 const (
 	ModeNormal = iota
@@ -77,6 +80,8 @@ type Editor struct {
 	EventDispatcher func(name string, args ...interface{}) // called by core to fire Lua events
 	HighlightFn func(line int, text string) []HighlightSpan // syntax coloring; nil means no highlighting
 	SearchPattern string            // active search string; empty means no search
+	ErrorMsg    string            // transient error message to display
+	ErrorTime   time.Time         // when the error was set
 }
 
 // HighlightSpan defines a colored rune range on a single line.
@@ -187,6 +192,17 @@ func (e *Editor) FindNext() bool {
 // FindPrev moves the cursor to the previous search match.
 func (e *Editor) FindPrev() bool {
 	return e.findMatch(e.Cursor.Line, e.Cursor.Col, -1)
+}
+
+// ShowError sets a transient error message to be displayed in the UI.
+func (e *Editor) ShowError(msg string) {
+	e.ErrorMsg = msg
+	e.ErrorTime = time.Now()
+}
+
+// ClearError removes the transient error message.
+func (e *Editor) ClearError() {
+	e.ErrorMsg = ""
 }
 
 func NewEditor() *Editor {
