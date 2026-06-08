@@ -70,8 +70,9 @@ type Editor struct {
 	ShouldQuit  bool
 	Viewport    Viewport
 	UndoStack   UndoStack
-	Anchor      LineCol // visual mode anchor
-	RenderHook  func()  // called during render loop for custom Lua drawing
+	Anchor      LineCol           // visual mode anchor
+	RenderHook  func()            // called during render loop for custom Lua drawing
+	StatusLine  func() (string, string) // returns left and right status text
 }
 
 func NewEditor() *Editor {

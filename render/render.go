@@ -89,18 +89,22 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 	}
 
 	// --- status line (normal mode) ---
-	filename := e.Buffer.FilePath
-	if filename == "" {
-		filename = "[No Name]"
+	var left, right string
+	if e.StatusLine != nil {
+		left, right = e.StatusLine()
+	} else {
+		filename := e.Buffer.FilePath
+		if filename == "" {
+			filename = "[No Name]"
+		}
+		modified := ""
+		if e.Buffer.Modified {
+			modified = " [+]"
+		}
+		left = filename + modified
+		modeStr := strings.ToUpper(e.ModeName())
+		right = fmt.Sprintf("%d:%d/%d -- %s", e.Cursor.Line+1, e.Cursor.Col+1, len(e.Buffer.Lines), modeStr)
 	}
-	modified := ""
-	if e.Buffer.Modified {
-		modified = " [+]"
-	}
-	left := filename + modified
-
-	modeStr := strings.ToUpper(e.ModeName())
-	right := fmt.Sprintf("%d:%d/%d -- %s", e.Cursor.Line+1, e.Cursor.Col+1, len(e.Buffer.Lines), modeStr)
 
 	// left side
 	raylib.DrawTextEx(font, left, raylib.Vector2{X: 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), theme.Get("statusTxt"))

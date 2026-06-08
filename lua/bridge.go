@@ -24,8 +24,9 @@ type Bridge struct {
 	Editor       *editor.Editor
 	CmdReg       *registry.CommandRegistry
 	KeyReg       *registry.KeymapRegistry
-	luaCmds      map[string]*glua.LFunction // command name → Lua handler
-	renderHookFn *glua.LFunction
+	luaCmds       map[string]*glua.LFunction // command name → Lua handler
+	renderHookFn  *glua.LFunction
+	statuslineFn  *glua.LFunction
 }
 
 // NewBridge creates a Lua state and exposes the editor API.
@@ -119,6 +120,7 @@ func (b *Bridge) registerAPI() {
 
 	b.registerRenderAPI()
 	b.registerThemeAPI()
+	b.registerStatuslineAPI()
 }
 
 // -------------------------------------------------------------------------
@@ -974,6 +976,50 @@ func (b *Bridge) luaThemeNames(L *glua.LState) int {
 	}
 	b.L.Push(tbl)
 	return 1
+}
+
+// -------------------------------------------------------------------------
+// Statusline API
+// -------------------------------------------------------------------------
+
+func (b *Bridge) registerStatuslineAPI() {
+	slTbl := b.L.NewTable()
+	b.L.SetField(slTbl, "Set", b.L.NewFunction(b.luaStatuslineSet))
+	b.L.SetGlobal("statusline", slTbl)
+}
+
+func (b *Bridge) luaStatuslineSet(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	fn := L.CheckFunction(2)
+	b.statuslineFn = fn
+
+	b.Editor.StatusLine = func() (string, string) {
+		if b.statuslineFn == nil {
+			return "", ""
+		}
+		b.L.Push(b.statuslineFn)
+		if err := b.L.PCall(0, 2, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "statusline error: %v\n", err)
+			b.statuslineFn = nil
+			b.Editor.StatusLine = nil
+			return "", ""
+		}
+		left := ""
+		right := ""
+		if ret := b.L.Get(-2); ret != glua.LNil {
+			if s, ok := ret.(glua.LString); ok {
+				left = string(s)
+			}
+		}
+		if ret := b.L.Get(-1); ret != glua.LNil {
+			if s, ok := ret.(glua.LString); ok {
+				right = string(s)
+			}
+		}
+		b.L.Pop(2)
+		return left, right
+	}
+	return 0
 }
 
 // -------------------------------------------------------------------------

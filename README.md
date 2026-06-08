@@ -135,6 +135,15 @@ Restart Sumi. No recompile.
 
 Slot names: `bg`, `text`, `gutter`, `cursor`, `selectBg`, `cursorLn`, `statusBg`, `statusTxt`.
 
+### `statusline`
+
+| Method | Description |
+|---|---|
+| `statusline:Set(fn)` | Replace the bottom status bar. `fn` receives no args and must return two strings: `left, right`. Pass `nil` to restore the default. |
+
+Default status bar (left): `filename [+]`
+Default status bar (right): `line:col/total -- MODE`
+
 ## Architecture
 
 | Layer | Language | Responsibility |

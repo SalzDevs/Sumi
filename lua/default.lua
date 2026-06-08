@@ -227,7 +227,24 @@ end)
 --]]
 
 -- -------------------------------------------------------------------------
--- Example 8: Invert arrow keys (vim-like or just playful)
+-- Example 8: Custom statusline format
+-- -------------------------------------------------------------------------
+--[[
+statusline:Set(function()
+    local name = editor.Buffer.FilePath
+    if name == "" then name = "[No Name]" end
+    if editor:Modified() then name = name .. " ●" end
+    local left = name
+
+    local right = string.format("Ln %d, Col %d  |  %s",
+        editor.Cursor:Line(), editor.Cursor:Col(), string.upper(editor:Mode()))
+
+    return left, right
+end)
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 9: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")
