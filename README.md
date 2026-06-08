@@ -220,6 +220,24 @@ Command errors ("pattern not found", "unsaved changes", etc.) are automatically 
 
 Theme slot: `errorTxt` (default: red).
 
+### `editor` tabs
+
+| Method | Description |
+|---|---|
+| `editor:NewTab()` | Create a blank tab and switch to it. Returns 1-based tab index. |
+| `editor:SwitchTab(idx)` | Switch to a tab by 1-based index. |
+| `editor:CloseTab(idx)` | Close a tab by 1-based index. Returns the new active index. |
+| `editor:NextTab()` | Switch to next tab (wraps around). |
+| `editor:PrevTab()` | Switch to previous tab (wraps around). |
+| `editor:TabCount()` | Number of open tabs. |
+| `editor:TabNames()` | Array of tab labels (filepath + `[+]` if modified). |
+| `editor:ActiveTab()` | 1-based index of the currently visible tab. |
+| `editor:OpenFileInNewTab(path)` | Load a file into a new tab. |
+
+Per-tab state (cursor, scroll, undo, settings, search pattern) is preserved when switching.
+
+Default chords (handled in Go, not the keymap registry): `Cmd+T` new tab, `Cmd+W` close tab, `Cmd+PageDown` next tab, `Cmd+PageUp` previous tab.
+
 ## Architecture
 
 | Layer | Language | Responsibility |
@@ -278,6 +296,10 @@ utils.say_hello("Sumi")
 | `F3` | Find next match |
 | `F4` | Find previous match |
 | `F5` | Reload `init.lua` and plugins without quitting |
+| `Cmd+T` | New blank tab |
+| `Cmd+W` | Close current tab |
+| `Cmd+PageDown` | Next tab |
+| `Cmd+PageUp` | Previous tab |
 | `Cmd+R` | Undo |
 | `Cmd+S` | Save |
 | Mouse click | Position cursor |

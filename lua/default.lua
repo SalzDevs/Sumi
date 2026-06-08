@@ -371,6 +371,33 @@ end)
 keymap:Register("normal", keys.F5, "reload_config")
 
 -- -------------------------------------------------------------------------
+-- Tab commands
+-- -------------------------------------------------------------------------
+commands:Register("new_tab", "Open a new blank tab", 0, 0, function(e, args)
+    e:NewTab()
+end)
+
+commands:Register("close_tab", "Close current tab", 0, 0, function(e, args)
+    e:CloseTab(e:ActiveTab())
+end)
+
+commands:Register("next_tab", "Switch to next tab", 0, 0, function(e, args)
+    e:NextTab()
+end)
+
+commands:Register("prev_tab", "Switch to previous tab", 0, 0, function(e, args)
+    e:PrevTab()
+end)
+
+commands:Register("tabopen", "Open file in new tab", 1, 1, function(e, args)
+    local err = e:OpenFileInNewTab(args[1])
+    if err then return err end
+end)
+
+-- Tab chords are handled directly in Go (Cmd+T/W/PageUp/PageDown)
+-- and do not go through the keymap registry.
+
+-- -------------------------------------------------------------------------
 -- Example 15: Display a custom error message in the UI
 -- -------------------------------------------------------------------------
 -- commands:Register("warn", "Show a warning", 1, 1, function(e, args)
@@ -378,7 +405,21 @@ keymap:Register("normal", keys.F5, "reload_config")
 -- end)
 
 -- -------------------------------------------------------------------------
--- Example 16: Invert arrow keys (vim-like or just playful)
+-- Example 16: Tab bar overlay (requires render:SetCallback)
+-- -------------------------------------------------------------------------
+--[[
+local WHITE = render:Color(255, 255, 255)
+local GRAY  = "#444444"
+local RED   = render:Color(255, 100, 100)
+render:SetCallback(function()
+    local tabs = editor:TabNames()
+    local active = editor.ActiveTab + 1 -- would need API... skip for now
+    -- (simplified: just list tabs at top)
+end)
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 17: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

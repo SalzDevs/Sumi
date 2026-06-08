@@ -34,6 +34,7 @@ func (e *Editor) LoadFile(path string) error {
 	e.Cursor.Col = 0
 	e.Cursor.DesiredCol = -1
 	e.DispatchEvent("file_open", path)
+	e.saveToTab(e.ActiveTab)
 	return nil
 }
 
@@ -48,5 +49,6 @@ func (e *Editor) SaveFile() error {
 	}
 	e.Buffer.Modified = false
 	e.DispatchEvent("save", e.Buffer.FilePath)
+	e.saveToTab(e.ActiveTab)
 	return nil
 }

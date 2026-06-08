@@ -108,6 +108,26 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 				}
 			}
 		}
+		if cmd && key == raylib.KeyT {
+			if err := cmdReg.Execute(e, "new_tab", nil); err != nil {
+				e.ShowError(err.Error())
+			}
+		}
+		if cmd && key == raylib.KeyW {
+			if err := cmdReg.Execute(e, "close_tab", nil); err != nil {
+				e.ShowError(err.Error())
+			}
+		}
+		if cmd && key == raylib.KeyPageDown {
+			if err := cmdReg.Execute(e, "next_tab", nil); err != nil {
+				e.ShowError(err.Error())
+			}
+		}
+		if cmd && key == raylib.KeyPageUp {
+			if err := cmdReg.Execute(e, "prev_tab", nil); err != nil {
+				e.ShowError(err.Error())
+			}
+		}
 		key = raylib.GetKeyPressed()
 	}
 

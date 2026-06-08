@@ -65,7 +65,21 @@ type Viewport struct {
 	ScrollY int
 }
 
+// Tab holds the per-buffer state for one editor tab.
+type Tab struct {
+	Buffer        *Buffer
+	Cursor        Cursor
+	Viewport      Viewport
+	UndoStack     UndoStack
+	Anchor        LineCol
+	Settings      map[string]interface{}
+	SearchPattern string
+	ErrorMsg      string
+	ErrorTime     time.Time
+}
+
 type Editor struct {
+	// Active view state — mirrors the current tab's data
 	Buffer      *Buffer
 	Cursor      Cursor
 	Mode        int
@@ -82,6 +96,9 @@ type Editor struct {
 	SearchPattern string            // active search string; empty means no search
 	ErrorMsg    string            // transient error message to display
 	ErrorTime   time.Time         // when the error was set
+
+	Tabs        []Tab             // all open tabs
+	ActiveTab   int               // index of the currently visible tab
 }
 
 // HighlightSpan defines a colored rune range on a single line.
@@ -205,23 +222,183 @@ func (e *Editor) ClearError() {
 	e.ErrorMsg = ""
 }
 
+// -------------------------------------------------------------------------
+// Tab management
+// -------------------------------------------------------------------------
+
 func NewEditor() *Editor {
-	return &Editor{
+	t := Tab{
 		Buffer: &Buffer{
 			Lines:    []string{""},
 			FilePath: "./test.txt",
 			Modified: false,
 		},
 		Cursor:      Cursor{DesiredCol: -1},
-		Mode:        ModeNormal,
-		CommandLine: "",
-		ShouldQuit:  false,
 		Viewport:    Viewport{ScrollY: 0},
 		UndoStack:   UndoStack{pos: -1},
 		Anchor:      LineCol{-1, -1},
 		Settings:    make(map[string]interface{}),
+		SearchPattern: "",
+	}
+
+	ed := &Editor{
+		Mode:        ModeNormal,
+		CommandLine: "",
+		ShouldQuit:  false,
+		Tabs:        []Tab{t},
+		ActiveTab:   0,
+	}
+	ed.restoreFromTab(0)
+	return ed
+}
+
+// restoreFromTab copies tab data into the active view fields.
+func (e *Editor) restoreFromTab(idx int) {
+	if idx < 0 || idx >= len(e.Tabs) {
+		return
+	}
+	t := e.Tabs[idx]
+	e.Buffer = t.Buffer
+	e.Cursor = t.Cursor
+	e.Viewport = t.Viewport
+	e.UndoStack = t.UndoStack
+	e.Anchor = t.Anchor
+	e.Settings = t.Settings
+	e.SearchPattern = t.SearchPattern
+	e.ErrorMsg = t.ErrorMsg
+	e.ErrorTime = t.ErrorTime
+	e.ActiveTab = idx
+}
+
+// saveToTab copies active view fields back into a tab.
+func (e *Editor) saveToTab(idx int) {
+	if idx < 0 || idx >= len(e.Tabs) {
+		return
+	}
+	e.Tabs[idx] = Tab{
+		Buffer:        e.Buffer,
+		Cursor:        e.Cursor,
+		Viewport:      e.Viewport,
+		UndoStack:     e.UndoStack,
+		Anchor:        e.Anchor,
+		Settings:      e.Settings,
+		SearchPattern: e.SearchPattern,
+		ErrorMsg:      e.ErrorMsg,
+		ErrorTime:     e.ErrorTime,
 	}
 }
+
+// SwitchTab changes to a different tab index (0-based).
+func (e *Editor) SwitchTab(idx int) bool {
+	if idx < 0 || idx >= len(e.Tabs) {
+		return false
+	}
+	if idx == e.ActiveTab {
+		return true
+	}
+	e.saveToTab(e.ActiveTab)
+	e.restoreFromTab(idx)
+	return true
+}
+
+// NewTab creates a blank tab and switches to it.
+func (e *Editor) NewTab() int {
+	e.saveToTab(e.ActiveTab)
+	t := Tab{
+		Buffer:      &Buffer{Lines: []string{""}, FilePath: ""},
+		Cursor:      Cursor{DesiredCol: -1},
+		Viewport:    Viewport{ScrollY: 0},
+		UndoStack:   UndoStack{pos: -1},
+		Anchor:      LineCol{-1, -1},
+		Settings:    make(map[string]interface{}),
+		SearchPattern: "",
+	}
+	e.Tabs = append(e.Tabs, t)
+	e.restoreFromTab(len(e.Tabs) - 1)
+	return len(e.Tabs) - 1
+}
+
+// CloseTab removes a tab. If the last tab is closed, a blank one is created.
+// Returns the new active tab index.
+func (e *Editor) CloseTab(idx int) int {
+	if len(e.Tabs) <= 1 {
+		// Replace the only tab with a blank one
+		e.Tabs[0] = Tab{
+			Buffer:      &Buffer{Lines: []string{""}, FilePath: ""},
+			Cursor:      Cursor{DesiredCol: -1},
+			Viewport:    Viewport{ScrollY: 0},
+			UndoStack:   UndoStack{pos: -1},
+			Anchor:      LineCol{-1, -1},
+			Settings:    make(map[string]interface{}),
+			SearchPattern: "",
+		}
+		e.restoreFromTab(0)
+		return 0
+	}
+
+	// Remove the tab at idx
+	e.Tabs = append(e.Tabs[:idx], e.Tabs[idx+1:]...)
+
+	// Pick a new active tab
+	newIdx := idx
+	if newIdx >= len(e.Tabs) {
+		newIdx = len(e.Tabs) - 1
+	}
+	if newIdx < 0 {
+		newIdx = 0
+	}
+	e.restoreFromTab(newIdx)
+	return newIdx
+}
+
+// NextTab switches to the next tab (wrapping around).
+func (e *Editor) NextTab() bool {
+	if len(e.Tabs) <= 1 {
+		return false
+	}
+	idx := e.ActiveTab + 1
+	if idx >= len(e.Tabs) {
+		idx = 0
+	}
+	return e.SwitchTab(idx)
+}
+
+// PrevTab switches to the previous tab (wrapping around).
+func (e *Editor) PrevTab() bool {
+	if len(e.Tabs) <= 1 {
+		return false
+	}
+	idx := e.ActiveTab - 1
+	if idx < 0 {
+		idx = len(e.Tabs) - 1
+	}
+	return e.SwitchTab(idx)
+}
+
+// OpenFileInNewTab loads a file into a new tab and switches to it.
+func (e *Editor) OpenFileInNewTab(path string) error {
+	if err := e.LoadFile(path); err != nil {
+		return err
+	}
+	// Save current tab, create new one with loaded buffer
+	e.saveToTab(e.ActiveTab)
+	t := Tab{
+		Buffer:      e.Buffer,
+		Cursor:      Cursor{Line: 0, Col: 0, DesiredCol: -1},
+		Viewport:    Viewport{ScrollY: 0},
+		UndoStack:   UndoStack{pos: -1},
+		Anchor:      LineCol{-1, -1},
+		Settings:    make(map[string]interface{}),
+		SearchPattern: "",
+	}
+	e.Tabs = append(e.Tabs, t)
+	e.restoreFromTab(len(e.Tabs) - 1)
+	return nil
+}
+
+// -------------------------------------------------------------------------
+// Existing methods (unchanged API surface)
+// -------------------------------------------------------------------------
 
 func (e *Editor) ModeName() string {
 	switch e.Mode {

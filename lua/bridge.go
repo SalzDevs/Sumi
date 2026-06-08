@@ -94,6 +94,10 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(keys, "BACKSPACE", glua.LNumber(259))
 	b.L.SetField(keys, "HOME", glua.LNumber(268))
 	b.L.SetField(keys, "END", glua.LNumber(269))
+	b.L.SetField(keys, "F2", glua.LNumber(291))
+	b.L.SetField(keys, "F3", glua.LNumber(292))
+	b.L.SetField(keys, "F4", glua.LNumber(293))
+	b.L.SetField(keys, "F5", glua.LNumber(294))
 	b.L.SetGlobal("keys", keys)
 
 	// editor table (live mutable API)
@@ -158,6 +162,17 @@ func (b *Bridge) registerAPI() {
 	// editor error display
 	b.L.SetField(edTbl, "ShowError", b.L.NewFunction(b.luaEditorShowError))
 	b.L.SetField(edTbl, "ClearError", b.L.NewFunction(b.luaEditorClearError))
+
+	// editor tabs
+	b.L.SetField(edTbl, "NewTab", b.L.NewFunction(b.luaEditorNewTab))
+	b.L.SetField(edTbl, "SwitchTab", b.L.NewFunction(b.luaEditorSwitchTab))
+	b.L.SetField(edTbl, "CloseTab", b.L.NewFunction(b.luaEditorCloseTab))
+	b.L.SetField(edTbl, "NextTab", b.L.NewFunction(b.luaEditorNextTab))
+	b.L.SetField(edTbl, "PrevTab", b.L.NewFunction(b.luaEditorPrevTab))
+	b.L.SetField(edTbl, "TabCount", b.L.NewFunction(b.luaEditorTabCount))
+	b.L.SetField(edTbl, "TabNames", b.L.NewFunction(b.luaEditorTabNames))
+	b.L.SetField(edTbl, "OpenFileInNewTab", b.L.NewFunction(b.luaEditorOpenFileInNewTab))
+	b.L.SetField(edTbl, "ActiveTab", b.L.NewFunction(b.luaEditorActiveTab))
 
 	b.L.SetGlobal("editor", edTbl)
 
@@ -538,6 +553,140 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 	}))
 	b.L.SetField(edTbl, "Cursor", curTbl)
 
+	// Settings
+	b.L.SetField(edTbl, "SetSetting", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		name := L.CheckString(2)
+		val := L.Get(3)
+		switch v := val.(type) {
+		case glua.LBool:
+			e.SetSetting(name, bool(v))
+		case glua.LNumber:
+			n := float64(v)
+			if n == float64(int64(n)) {
+				e.SetSetting(name, int(n))
+			} else {
+				e.SetSetting(name, n)
+			}
+		case glua.LString:
+			e.SetSetting(name, string(v))
+		case *glua.LNilType:
+			e.SetSetting(name, nil)
+		default:
+			e.SetSetting(name, val)
+		}
+		return 0
+	}))
+	b.L.SetField(edTbl, "GetSetting", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		name := L.CheckString(2)
+		val := e.GetSetting(name)
+		if val == nil {
+			L.Push(glua.LNil)
+			return 1
+		}
+		switch v := val.(type) {
+		case bool:
+			L.Push(glua.LBool(v))
+		case int:
+			L.Push(glua.LNumber(v))
+		case float64:
+			L.Push(glua.LNumber(v))
+		case string:
+			L.Push(glua.LString(v))
+		default:
+			L.Push(glua.LString(fmt.Sprintf("%v", v)))
+		}
+		return 1
+	}))
+
+	// Search
+	b.L.SetField(edTbl, "SetSearchPattern", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.SetSearchPattern(L.CheckString(2))
+		return 0
+	}))
+	b.L.SetField(edTbl, "SearchPattern", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LString(e.SearchPattern))
+		return 1
+	}))
+	b.L.SetField(edTbl, "ClearSearch", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.ClearSearch()
+		return 0
+	}))
+	b.L.SetField(edTbl, "FindNext", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LBool(e.FindNext()))
+		return 1
+	}))
+	b.L.SetField(edTbl, "FindPrev", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LBool(e.FindPrev()))
+		return 1
+	}))
+
+	// Error display
+	b.L.SetField(edTbl, "ShowError", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.ShowError(L.CheckString(2))
+		return 0
+	}))
+	b.L.SetField(edTbl, "ClearError", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.ClearError()
+		return 0
+	}))
+
+	// Tabs
+	b.L.SetField(edTbl, "NewTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(e.NewTab() + 1))
+		return 1
+	}))
+	b.L.SetField(edTbl, "SwitchTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		idx := L.CheckInt(2) - 1
+		L.Push(glua.LBool(e.SwitchTab(idx)))
+		return 1
+	}))
+	b.L.SetField(edTbl, "CloseTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		idx := L.CheckInt(2) - 1
+		L.Push(glua.LNumber(e.CloseTab(idx) + 1))
+		return 1
+	}))
+	b.L.SetField(edTbl, "NextTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LBool(e.NextTab()))
+		return 1
+	}))
+	b.L.SetField(edTbl, "PrevTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LBool(e.PrevTab()))
+		return 1
+	}))
+	b.L.SetField(edTbl, "TabCount", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(len(e.Tabs)))
+		return 1
+	}))
+	b.L.SetField(edTbl, "ActiveTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(e.ActiveTab + 1))
+		return 1
+	}))
+	b.L.SetField(edTbl, "OpenFileInNewTab", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		path := L.CheckString(2)
+		if err := e.OpenFileInNewTab(path); err != nil {
+			L.Push(glua.LString(err.Error()))
+			return 1
+		}
+		return 0
+	}))
+
 	b.L.Push(edTbl)
 }
 
@@ -882,6 +1031,82 @@ func (b *Bridge) luaEditorClearError(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	b.Editor.ClearError()
 	return 0
+}
+
+func (b *Bridge) luaEditorNewTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	idx := b.Editor.NewTab()
+	L.Push(glua.LNumber(idx + 1)) // 1-based for Lua
+	return 1
+}
+
+func (b *Bridge) luaEditorSwitchTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	idx := L.CheckInt(2) - 1 // to 0-based
+	ok := b.Editor.SwitchTab(idx)
+	L.Push(glua.LBool(ok))
+	return 1
+}
+
+func (b *Bridge) luaEditorCloseTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	idx := L.CheckInt(2) - 1 // to 0-based
+	newIdx := b.Editor.CloseTab(idx)
+	L.Push(glua.LNumber(newIdx + 1))
+	return 1
+}
+
+func (b *Bridge) luaEditorNextTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	ok := b.Editor.NextTab()
+	L.Push(glua.LBool(ok))
+	return 1
+}
+
+func (b *Bridge) luaEditorPrevTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	ok := b.Editor.PrevTab()
+	L.Push(glua.LBool(ok))
+	return 1
+}
+
+func (b *Bridge) luaEditorTabCount(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(len(b.Editor.Tabs)))
+	return 1
+}
+
+func (b *Bridge) luaEditorTabNames(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	tbl := b.L.NewTable()
+	for i, t := range b.Editor.Tabs {
+		name := t.Buffer.FilePath
+		if name == "" {
+			name = "[No Name]"
+		}
+		if t.Buffer.Modified {
+			name += " [+]"
+		}
+		b.L.RawSetInt(tbl, i+1, glua.LString(name))
+	}
+	b.L.Push(tbl)
+	return 1
+}
+
+func (b *Bridge) luaEditorOpenFileInNewTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	path := L.CheckString(2)
+	if err := b.Editor.OpenFileInNewTab(path); err != nil {
+		L.Push(glua.LString(err.Error()))
+		return 1
+	}
+	return 0
+}
+
+func (b *Bridge) luaEditorActiveTab(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(b.Editor.ActiveTab + 1)) // 1-based for Lua
+	return 1
 }
 
 func (b *Bridge) luaEditorSetSetting(L *glua.LState) int {
