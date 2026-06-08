@@ -163,6 +163,9 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(edTbl, "ShowError", b.L.NewFunction(b.luaEditorShowError))
 	b.L.SetField(edTbl, "ClearError", b.L.NewFunction(b.luaEditorClearError))
 
+	// editor viewport
+	b.L.SetField(edTbl, "ViewportScrollY", b.L.NewFunction(b.luaEditorViewportScrollY))
+
 	// editor tabs
 	b.L.SetField(edTbl, "NewTab", b.L.NewFunction(b.luaEditorNewTab))
 	b.L.SetField(edTbl, "SwitchTab", b.L.NewFunction(b.luaEditorSwitchTab))
@@ -638,6 +641,11 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 		e.ClearError()
 		return 0
 	}))
+	b.L.SetField(edTbl, "ViewportScrollY", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(e.Viewport.ScrollY))
+		return 1
+	}))
 
 	// Tabs
 	b.L.SetField(edTbl, "NewTab", b.L.NewFunction(func(L *glua.LState) int {
@@ -1031,6 +1039,12 @@ func (b *Bridge) luaEditorClearError(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	b.Editor.ClearError()
 	return 0
+}
+
+func (b *Bridge) luaEditorViewportScrollY(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LNumber(b.Editor.Viewport.ScrollY))
+	return 1
 }
 
 func (b *Bridge) luaEditorNewTab(L *glua.LState) int {

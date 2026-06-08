@@ -72,6 +72,11 @@ Restart Sumi. No recompile.
 | `editor:CommandLine()` | Get current command line string |
 | `editor:SetCommandLine(text)` | Set command line string |
 | `editor:CommandLineBackspace()` | Delete last command character |
+| `editor:SetSetting(name, value)` | Store a buffer-local setting |
+| `editor:GetSetting(name)` | Retrieve a setting value, or `nil` |
+| `editor:ShowError(msg)` | Display a transient error in the status bar |
+| `editor:ClearError()` | Dismiss the error immediately |
+| `editor:ViewportScrollY()` | Current scroll position (0-based line index) |
 
 ### `editor.Buffer`
 
