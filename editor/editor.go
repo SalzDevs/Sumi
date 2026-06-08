@@ -17,6 +17,44 @@ type Cursor struct {
 	DesiredCol int // -1 means unset
 }
 
+type LineCol struct {
+	Line int
+	Col  int
+}
+
+type Edit struct {
+	StartLine    int
+	Before       []string
+	After        []string
+	CursorBefore LineCol
+	CursorAfter  LineCol
+}
+
+type UndoStack struct {
+	edits []Edit
+	pos   int // index of current edit; -1 means nothing to undo
+}
+
+func (s *UndoStack) Push(e Edit) {
+	// Truncate redo history if we branch from the middle
+	if s.pos >= 0 && s.pos < len(s.edits)-1 {
+		s.edits = s.edits[:s.pos+1]
+	}
+	s.edits = append(s.edits, e)
+	s.pos = len(s.edits) - 1
+}
+
+func (s *UndoStack) Undo() (Edit, bool) {
+	if s.pos < 0 {
+		return Edit{}, false
+	}
+	edit := s.edits[s.pos]
+	s.pos--
+	return edit, true
+}
+
+
+
 type Viewport struct {
 	ScrollY int
 }
@@ -28,6 +66,7 @@ type Editor struct {
 	CommandLine string
 	ShouldQuit  bool
 	Viewport    Viewport
+	UndoStack   UndoStack
 }
 
 func NewEditor() *Editor {
@@ -42,6 +81,7 @@ func NewEditor() *Editor {
 		CommandLine: "",
 		ShouldQuit:  false,
 		Viewport:    Viewport{ScrollY: 0},
+		UndoStack:   UndoStack{pos: -1},
 	}
 }
 

@@ -128,6 +128,13 @@ func RegisterBuiltinCommands(r *registry.CommandRegistry) {
 			}
 			return nil
 		})
+
+	// Undo
+	r.Register("undo", "Undo last change", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			e.Undo()
+			return nil
+		})
 }
 
 func RegisterBuiltinKeymaps(k *registry.KeymapRegistry) {
@@ -143,4 +150,6 @@ func RegisterBuiltinKeymaps(k *registry.KeymapRegistry) {
 	k.Register("command", raylib.KeyEscape, "cancel_command")
 	k.Register("command", raylib.KeyBackspace, "command_backspace")
 	k.Register("command", raylib.KeyEnter, "execute_command")
+
+	// Ctrl+U for undo is handled in main.go alongside Ctrl+S
 }

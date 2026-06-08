@@ -64,9 +64,14 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 		if cmd, ok := keyReg.Resolve(mode, key); ok {
 			_ = cmdReg.Execute(e, cmd, nil)
 		}
-		// TODO: Ctrl+S chord should eventually live in the keymap too
-		if (raylib.IsKeyDown(raylib.KeyLeftControl) || raylib.IsKeyDown(raylib.KeyRightControl)) && key == raylib.KeyS {
+		// TODO: chords should eventually live in the keymap too
+		ctrl := raylib.IsKeyDown(raylib.KeyLeftControl) || raylib.IsKeyDown(raylib.KeyRightControl)
+		cmd := raylib.IsKeyDown(raylib.KeyLeftSuper) || raylib.IsKeyDown(raylib.KeyRightSuper)
+		if ctrl && key == raylib.KeyS {
 			_ = cmdReg.Execute(e, "w", nil)
+		}
+		if cmd && key == raylib.KeyR {
+			_ = cmdReg.Execute(e, "undo", nil)
 		}
 		key = raylib.GetKeyPressed()
 	}
