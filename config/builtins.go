@@ -135,6 +135,26 @@ func RegisterBuiltinCommands(r *registry.CommandRegistry) {
 			e.Undo()
 			return nil
 		})
+
+	// Visual mode commands
+	r.Register("enter_visual_mode", "Enter visual mode", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			e.Mode = editor.ModeVisual
+			e.SetVisualAnchor()
+			return nil
+		})
+
+	r.Register("cancel_visual", "Cancel visual mode", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			e.ClearVisual()
+			return nil
+		})
+
+	r.Register("visual_delete", "Delete visual selection", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			e.DeleteSelection()
+			return nil
+		})
 }
 
 func RegisterBuiltinKeymaps(k *registry.KeymapRegistry) {
@@ -150,6 +170,14 @@ func RegisterBuiltinKeymaps(k *registry.KeymapRegistry) {
 	k.Register("command", raylib.KeyEscape, "cancel_command")
 	k.Register("command", raylib.KeyBackspace, "command_backspace")
 	k.Register("command", raylib.KeyEnter, "execute_command")
+
+	// Visual mode
+	k.Register("visual", raylib.KeyEscape, "cancel_visual")
+	k.Register("visual", raylib.KeyLeft, "move_left")
+	k.Register("visual", raylib.KeyRight, "move_right")
+	k.Register("visual", raylib.KeyUp, "move_up")
+	k.Register("visual", raylib.KeyDown, "move_down")
+	k.Register("visual", raylib.KeyBackspace, "backspace")
 
 	// Ctrl+U for undo is handled in main.go alongside Ctrl+S
 }

@@ -109,6 +109,9 @@ func Render(e *editor.Editor, font raylib.Font) {
 			}
 			chStr := string(r)
 			glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
+			if e.IsSelected(lineIdx, col) {
+				raylib.DrawRectangle(int32(penX), int32(penY), int32(glyphW), FontSize, raylib.SkyBlue)
+			}
 			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), raylib.Red)
 			penX += glyphW
 		}

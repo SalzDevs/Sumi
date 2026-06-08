@@ -3,6 +3,7 @@ package editor
 const (
 	ModeNormal = iota
 	ModeCommand
+	ModeVisual
 )
 
 type Buffer struct {
@@ -67,6 +68,7 @@ type Editor struct {
 	ShouldQuit  bool
 	Viewport    Viewport
 	UndoStack   UndoStack
+	Anchor      LineCol // visual mode anchor
 }
 
 func NewEditor() *Editor {
@@ -82,6 +84,7 @@ func NewEditor() *Editor {
 		ShouldQuit:  false,
 		Viewport:    Viewport{ScrollY: 0},
 		UndoStack:   UndoStack{pos: -1},
+		Anchor:      LineCol{-1, -1},
 	}
 }
 
@@ -91,9 +94,62 @@ func (e *Editor) ModeName() string {
 		return "normal"
 	case ModeCommand:
 		return "command"
+	case ModeVisual:
+		return "visual"
 	default:
 		return "normal"
 	}
+}
+
+// NormalizedSelection returns the start and end of the current visual selection,
+// ordered so that start <= end. Only valid when Mode == ModeVisual.
+func (e *Editor) NormalizedSelection() (LineCol, LineCol) {
+	anchor := e.Anchor
+	head := LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col}
+
+	if anchor.Line < head.Line {
+		return anchor, head
+	} else if anchor.Line > head.Line {
+		return head, anchor
+	}
+	// same line
+	if anchor.Col <= head.Col {
+		return anchor, head
+	}
+	return head, anchor
+}
+
+// IsSelected reports whether the given position is inside the visual selection.
+func (e *Editor) IsSelected(line, col int) bool {
+	if e.Mode != ModeVisual {
+		return false
+	}
+	start, end := e.NormalizedSelection()
+
+	if line < start.Line || line > end.Line {
+		return false
+	}
+	if line == start.Line && line == end.Line {
+		return col >= start.Col && col <= end.Col
+	}
+	if line == start.Line {
+		return col >= start.Col
+	}
+	if line == end.Line {
+		return col <= end.Col
+	}
+	return true
+}
+
+// ClearVisual cancels visual mode and clears the anchor.
+func (e *Editor) ClearVisual() {
+	e.Mode = ModeNormal
+	e.Anchor = LineCol{-1, -1}
+}
+
+// SetVisualAnchor sets the anchor to the current cursor position.
+func (e *Editor) SetVisualAnchor() {
+	e.Anchor = LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col}
 }
 
 func (e *Editor) ResetDesired() {

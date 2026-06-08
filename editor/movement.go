@@ -160,3 +160,67 @@ func (e *Editor) Undo() {
 	e.Cursor.Col = edit.CursorBefore.Col
 	e.Buffer.Modified = true
 }
+
+// DeleteSelection removes the current visual selection and returns to normal mode.
+func (e *Editor) DeleteSelection() {
+	if e.Mode != ModeVisual {
+		return
+	}
+
+	start, end := e.NormalizedSelection()
+
+	// Record undo before mutating
+	var before []string
+	for i := start.Line; i <= end.Line; i++ {
+		before = append(before, e.Buffer.Lines[i])
+	}
+	cursorBefore := start
+
+	// Perform deletion
+	if start.Line == end.Line {
+		line := []rune(e.Buffer.Lines[start.Line])
+		prefix := string(line[:start.Col])
+		suffix := string(line[end.Col+1:])
+		e.Buffer.Lines[start.Line] = prefix + suffix
+	} else {
+		firstLine := []rune(e.Buffer.Lines[start.Line])
+		lastLine := []rune(e.Buffer.Lines[end.Line])
+		prefix := string(firstLine[:start.Col])
+		suffix := string(lastLine[end.Col+1:])
+		e.Buffer.Lines[start.Line] = prefix + suffix
+
+		// Remove lines from start.Line+1 through end.Line
+		if end.Line+1 < len(e.Buffer.Lines) {
+			e.Buffer.Lines = append(e.Buffer.Lines[:start.Line+1], e.Buffer.Lines[end.Line+1:]...)
+		} else {
+			e.Buffer.Lines = e.Buffer.Lines[:start.Line+1]
+		}
+	}
+
+	// Clean up empty buffer
+	if len(e.Buffer.Lines) == 0 {
+		e.Buffer.Lines = []string{""}
+	}
+
+	// Ensure cursor lands on a valid line
+	if start.Line >= len(e.Buffer.Lines) {
+		start.Line = len(e.Buffer.Lines) - 1
+	}
+	if start.Col > e.LineLen(start.Line) {
+		start.Col = e.LineLen(start.Line)
+	}
+
+	e.Cursor.Line = start.Line
+	e.Cursor.Col = start.Col
+	e.ClearVisual()
+	e.Buffer.Modified = true
+
+	// Record undo
+	e.UndoStack.Push(Edit{
+		StartLine:    cursorBefore.Line,
+		Before:       before,
+		After:        []string{e.Buffer.Lines[start.Line]},
+		CursorBefore: cursorBefore,
+		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
+	})
+}

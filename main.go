@@ -73,18 +73,35 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 		if cmd && key == raylib.KeyR {
 			_ = cmdReg.Execute(e, "undo", nil)
 		}
+		if cmd && key == raylib.KeyV {
+			if e.Mode == editor.ModeVisual {
+				_ = cmdReg.Execute(e, "cancel_visual", nil)
+			} else {
+				_ = cmdReg.Execute(e, "enter_visual_mode", nil)
+			}
+		}
 		key = raylib.GetKeyPressed()
 	}
 
 	// --- character input ---
 	ch := raylib.GetCharPressed()
 	for ch != 0 {
-		if e.Mode == editor.ModeCommand {
+		switch e.Mode {
+		case editor.ModeCommand:
 			e.CommandLine += string(rune(ch))
-		} else if ch == ':' {
-			_ = cmdReg.Execute(e, "enter_command_mode", nil)
-		} else if ch >= 32 && ch < 127 {
-			e.InsertChar(rune(ch))
+		case editor.ModeVisual:
+			switch ch {
+			case 'v':
+				_ = cmdReg.Execute(e, "cancel_visual", nil)
+			case 'd':
+				_ = cmdReg.Execute(e, "visual_delete", nil)
+			}
+		default: // normal mode
+			if ch == ':' {
+				_ = cmdReg.Execute(e, "enter_command_mode", nil)
+			} else if ch >= 32 && ch < 127 {
+				e.InsertChar(rune(ch))
+			}
 		}
 		ch = raylib.GetCharPressed()
 	}
