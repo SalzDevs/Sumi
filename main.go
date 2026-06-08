@@ -29,8 +29,8 @@ type Command struct {
 	Name        string
 	Description string
 	Handler     func(e *Editor, args []string) error
-	MinArgs     int  // minimum required arguments
-	MaxArgs     int  // maximum allowed arguments; -1 means unlimited
+	MinArgs     int // minimum required arguments
+	MaxArgs     int // maximum allowed arguments; -1 means unlimited
 }
 
 // CommandRegistry holds all available commands.
@@ -83,6 +83,36 @@ func (r *CommandRegistry) Names() []string {
 	return names
 }
 
+// KeymapRegistry maps (mode, key) → command name.
+// V1 is single-key only. Multi-key sequences (e.g. "gg") are future work.
+type KeymapRegistry struct {
+	bindings map[string]map[int32]string // mode → key → command
+}
+
+func NewKeymapRegistry() *KeymapRegistry {
+	return &KeymapRegistry{
+		bindings: make(map[string]map[int32]string),
+	}
+}
+
+// Register binds a key to a command in a given mode.
+func (k *KeymapRegistry) Register(mode string, key int32, command string) {
+	if k.bindings[mode] == nil {
+		k.bindings[mode] = make(map[int32]string)
+	}
+	k.bindings[mode][key] = command
+}
+
+// Resolve looks up the command for a key in the given mode.
+func (k *KeymapRegistry) Resolve(mode string, key int32) (string, bool) {
+	cmds, ok := k.bindings[mode]
+	if !ok {
+		return "", false
+	}
+	cmd, ok := cmds[key]
+	return cmd, ok
+}
+
 type Buffer struct {
 	Lines    []string
 	FilePath string
@@ -102,6 +132,7 @@ type Editor struct {
 	CommandLine string
 	ShouldQuit  bool
 	Registry    *CommandRegistry
+	Keymap      *KeymapRegistry
 }
 
 func NewEditor() *Editor {
@@ -116,6 +147,18 @@ func NewEditor() *Editor {
 		CommandLine: "",
 		ShouldQuit:  false,
 		Registry:    NewCommandRegistry(),
+		Keymap:      NewKeymapRegistry(),
+	}
+}
+
+func (e *Editor) modeName() string {
+	switch e.Mode {
+	case modeNormal:
+		return "normal"
+	case modeCommand:
+		return "command"
+	default:
+		return "normal"
 	}
 }
 
@@ -280,7 +323,6 @@ func (e *Editor) executeCommandLine() {
 	}
 
 	if err := e.Registry.Execute(e, cmdName, args); err != nil {
-		// TODO: render error in command line bar instead of stderr
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 
@@ -291,6 +333,7 @@ func (e *Editor) executeCommandLine() {
 func registerBuiltinCommands(e *Editor) {
 	r := e.Registry
 
+	// File commands
 	r.Register("w", "Save the current file", 0, 0,
 		func(e *Editor, args []string) error {
 			return e.saveFile()
@@ -317,56 +360,117 @@ func registerBuiltinCommands(e *Editor) {
 		func(e *Editor, args []string) error {
 			return e.loadFile(args[0])
 		})
+
+	// Movement commands
+	r.Register("move_left", "Move cursor left", 0, 0,
+		func(e *Editor, args []string) error {
+			e.moveLeft()
+			return nil
+		})
+
+	r.Register("move_right", "Move cursor right", 0, 0,
+		func(e *Editor, args []string) error {
+			e.moveRight()
+			return nil
+		})
+
+	r.Register("move_up", "Move cursor up", 0, 0,
+		func(e *Editor, args []string) error {
+			e.moveUp()
+			return nil
+		})
+
+	r.Register("move_down", "Move cursor down", 0, 0,
+		func(e *Editor, args []string) error {
+			e.moveDown()
+			return nil
+		})
+
+	// Edit commands
+	r.Register("backspace", "Delete character before cursor", 0, 0,
+		func(e *Editor, args []string) error {
+			e.backspace()
+			return nil
+		})
+
+	r.Register("insert_newline", "Insert newline", 0, 0,
+		func(e *Editor, args []string) error {
+			e.insertNewline()
+			return nil
+		})
+
+	// Mode commands
+	r.Register("enter_command_mode", "Enter command mode", 0, 0,
+		func(e *Editor, args []string) error {
+			e.Mode = modeCommand
+			return nil
+		})
+
+	r.Register("cancel_command", "Cancel command mode", 0, 0,
+		func(e *Editor, args []string) error {
+			e.CommandLine = ""
+			e.Mode = modeNormal
+			return nil
+		})
+
+	r.Register("execute_command", "Execute command line", 0, 0,
+		func(e *Editor, args []string) error {
+			e.executeCommandLine()
+			return nil
+		})
+
+	r.Register("command_backspace", "Delete last command character", 0, 0,
+		func(e *Editor, args []string) error {
+			if len(e.CommandLine) > 0 {
+				runes := []rune(e.CommandLine)
+				e.CommandLine = string(runes[:len(runes)-1])
+			}
+			return nil
+		})
+}
+
+func registerBuiltinKeymaps(e *Editor) {
+	k := e.Keymap
+
+	// Normal mode
+	k.Register("normal", raylib.KeyLeft, "move_left")
+	k.Register("normal", raylib.KeyRight, "move_right")
+	k.Register("normal", raylib.KeyUp, "move_up")
+	k.Register("normal", raylib.KeyDown, "move_down")
+	k.Register("normal", raylib.KeyBackspace, "backspace")
+	k.Register("normal", raylib.KeyEnter, "insert_newline")
+
+	// Command mode
+	k.Register("command", raylib.KeyEscape, "cancel_command")
+	k.Register("command", raylib.KeyBackspace, "command_backspace")
+	k.Register("command", raylib.KeyEnter, "execute_command")
 }
 
 func handleInput(e *Editor) {
+	mode := e.modeName()
+
+	// --- special keys ---
 	key := raylib.GetKeyPressed()
 	for key != 0 {
-		if e.Mode == modeCommand {
-			switch key {
-			case raylib.KeyEscape:
-				e.CommandLine = ""
-				e.Mode = modeNormal
-			case raylib.KeyBackspace:
-				if len(e.CommandLine) > 0 {
-					runes := []rune(e.CommandLine)
-					e.CommandLine = string(runes[:len(runes)-1])
-				}
-			case raylib.KeyEnter:
-				e.executeCommandLine()
-			}
-		} else {
-			switch key {
-			case raylib.KeyRight:
-				e.moveRight()
-			case raylib.KeyLeft:
-				e.moveLeft()
-			case raylib.KeyDown:
-				e.moveDown()
-			case raylib.KeyUp:
-				e.moveUp()
-			case raylib.KeyBackspace:
-				e.backspace()
-			case raylib.KeyEnter:
-				e.insertNewline()
-			}
-			if (raylib.IsKeyDown(raylib.KeyLeftControl) || raylib.IsKeyDown(raylib.KeyRightControl)) && key == raylib.KeyS {
-				_ = e.saveFile()
-			}
+		if cmd, ok := e.Keymap.Resolve(mode, key); ok {
+			_ = e.Registry.Execute(e, cmd, nil)
+		}
+		// TODO: chords (Ctrl+S) should eventually live in the keymap too
+		if (raylib.IsKeyDown(raylib.KeyLeftControl) || raylib.IsKeyDown(raylib.KeyRightControl)) && key == raylib.KeyS {
+			_ = e.Registry.Execute(e, "w", nil)
 		}
 		key = raylib.GetKeyPressed()
 	}
 
+	// --- character input ---
 	ch := raylib.GetCharPressed()
 	for ch != 0 {
 		if e.Mode == modeCommand {
 			e.CommandLine += string(rune(ch))
-		} else {
-			if ch == ':' {
-				e.Mode = modeCommand
-			} else if ch >= 32 && ch < 127 {
-				e.insertChar(rune(ch))
-			}
+		} else if ch == ':' {
+			_ = e.Registry.Execute(e, "enter_command_mode", nil)
+		} else if ch >= 32 && ch < 127 {
+			e.insertChar(rune(ch))
 		}
 		ch = raylib.GetCharPressed()
 	}
@@ -422,6 +526,7 @@ func renderEditor(e *Editor, font raylib.Font) {
 func main() {
 	editor := NewEditor()
 	registerBuiltinCommands(editor)
+	registerBuiltinKeymaps(editor)
 
 	if len(os.Args) > 1 {
 		_ = editor.loadFile(os.Args[1])
