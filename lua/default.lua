@@ -2,9 +2,11 @@
 -- This is embedded in the binary and loaded on startup.
 -- User config at ~/.config/sumi/init.lua can override these bindings.
 
--- -------------------------------------------------------------------------
--- Commands (registered in Lua — the SDK in action)
--- -------------------------------------------------------------------------
+-- =========================================================================
+-- COMMANDS
+-- =========================================================================
+-- All editor behavior is defined here in Lua. The Go engine exposes
+-- primitives; the personality lives in this file.
 
 -- Movement
 commands:Register("move_left", "Move cursor left", 0, 0, function(e, args)
@@ -98,9 +100,9 @@ commands:Register("goto_line_end", "Go to end of line", 0, 0, function(e, args)
     e.Cursor:Goto(e.Cursor:Line(), 999999)
 end)
 
--- -------------------------------------------------------------------------
--- Keymaps
--- -------------------------------------------------------------------------
+-- =========================================================================
+-- KEYMAPS
+-- =========================================================================
 
 -- Normal mode
 keymap:Register("normal", keys.RIGHT, "move_right")
@@ -125,29 +127,109 @@ keymap:Register("visual", keys.DOWN, "move_down")
 keymap:Register("visual", keys.UP, "move_up")
 keymap:Register("visual", keys.BACKSPACE, "backspace")
 
--- -------------------------------------------------------------------------
--- Theme customization (uncomment to override default colors)
--- -------------------------------------------------------------------------
-theme:SetColor("bg", "#1e1e1e")
-theme:SetColor("text", "#d4d4d4")
-theme:SetColor("cursor", "#ff0044")
-theme:SetColor("selectBg", "#264f78")
-theme:SetColor("cursorLn", "#2d2d2d")
-theme:SetColor("statusBg", "#252526")
-theme:SetColor("statusTxt", "#cccccc")
-theme:SetColor("gutter", "#858585")
+-- =========================================================================
+-- EXAMPLES: Uncomment blocks below to explore the Lua API.
+-- Copy anything you like into ~/.config/sumi/init.lua.
+-- =========================================================================
 
 -- -------------------------------------------------------------------------
--- Render hook example (uncomment to enable a custom overlay)
+-- Example 1: Theme customization
+-- -------------------------------------------------------------------------
+-- theme:SetColor("bg", "#1e1e1e")
+-- theme:SetColor("text", "#d4d4d4")
+-- theme:SetColor("cursor", "#ff0044")
+-- theme:SetColor("selectBg", "#264f78")
+-- theme:SetColor("cursorLn", "#2d2d2d")
+-- theme:SetColor("statusBg", "#252526")
+-- theme:SetColor("statusTxt", "#cccccc")
+-- theme:SetColor("gutter", "#858585")
+
+-- -------------------------------------------------------------------------
+-- Example 2: Custom command — uppercase the current line
+-- -------------------------------------------------------------------------
+-- commands:Register("uppercase_line", "Uppercase current line", 0, 0, function(e, args)
+--     local n = e.Cursor:Line()
+--     e.Buffer:SetLine(n, string.upper(e.Buffer:GetLine(n)))
+-- end)
+-- keymap:Register("normal", keys.HOME, "uppercase_line")
+
+-- -------------------------------------------------------------------------
+-- Example 3: Custom command — go to a specific line
+-- -------------------------------------------------------------------------
+-- commands:Register("goto_line", "Go to line number", 1, 1, function(e, args)
+--     local n = tonumber(args[1])
+--     if n then
+--         e.Cursor:Goto(n, 1)
+--     end
+-- end)
+-- keymap:Register("normal", keys.END, "goto_line")
+-- -- Usage: type ":goto_line 42" in command mode (or bind a key)
+
+-- -------------------------------------------------------------------------
+-- Example 4: Custom command — insert a timestamp
+-- -------------------------------------------------------------------------
+-- commands:Register("insert_timestamp", "Insert current timestamp", 0, 0, function(e, args)
+--     e:InsertChar(string.byte("#"))
+--     e:InsertNewline()
+-- end)
+
+-- -------------------------------------------------------------------------
+-- Example 5: Render hook — mode indicator overlay
+-- -------------------------------------------------------------------------
+-- local RED   = render:Color(255, 80, 80)
+-- local DARK  = "#1a1a1a"
+-- render:SetCallback(function()
+--     local w = render:ScreenWidth()
+--     local text = "MODE: " .. string.upper(editor:Mode())
+--     local tw = render:MeasureText(text, 14)
+--     render:DrawRectangle(w - tw - 16, 6, tw + 12, 22, DARK)
+--     render:DrawText(text, w - tw - 10, 9, 14, RED)
+-- end)
+
+-- -------------------------------------------------------------------------
+-- Example 6: Render hook — toggleable overlay with a key
 -- -------------------------------------------------------------------------
 --[[
-local red = render:Color(255, 0, 0)
-local dark = "#1a1a1a"
+local overlayActive = false
+local CYAN  = render:Color(0, 255, 255)
+local BLACK = "#000000"
+
+commands:Register("toggle_overlay", "Toggle info overlay", 0, 0, function(e, args)
+    overlayActive = not overlayActive
+    if overlayActive then
+        render:SetCallback(function()
+            local w = render:ScreenWidth()
+            local h = render:ScreenHeight()
+            local info = string.format("Line %d / %d", e.Cursor:Line(), e:LineCount())
+            local iw = render:MeasureText(info, 12)
+            render:DrawRectangle(4, h - 44, iw + 12, 18, BLACK)
+            render:DrawText(info, 8, h - 42, 12, CYAN)
+        end)
+    else
+        render:SetCallback(nil)
+    end
+end)
+
+keymap:Register("normal", keys.F2, "toggle_overlay")
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 7: Render hook — crosshair at screen center
+-- -------------------------------------------------------------------------
+--[[
+local GREEN = render:Color(0, 255, 0)
 render:SetCallback(function()
-    local w = render:ScreenWidth()
-    local text = "Mode: " .. editor:Mode()
-    local tw = render:MeasureText(text, 16)
-    render:DrawRectangle(w - tw - 20, 10, tw + 16, 24, dark)
-    render:DrawText(text, w - tw - 12, 14, 16, red)
+    local cx = render:ScreenWidth() / 2
+    local cy = render:ScreenHeight() / 2
+    render:DrawLine(cx - 6, cy, cx + 6, cy, GREEN)
+    render:DrawLine(cx, cy - 6, cx, cy + 6, GREEN)
 end)
 --]]
+
+-- -------------------------------------------------------------------------
+-- Example 8: Invert arrow keys (vim-like or just playful)
+-- -------------------------------------------------------------------------
+-- keymap:Register("normal", keys.LEFT, "move_right")
+-- keymap:Register("normal", keys.RIGHT, "move_left")
+-- keymap:Register("normal", keys.UP, "move_down")
+-- keymap:Register("normal", keys.DOWN, "move_up")
