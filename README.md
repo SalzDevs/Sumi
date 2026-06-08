@@ -139,7 +139,7 @@ Restart Sumi. No recompile.
 | `theme:GetColor(name)` | Returns the packed color integer for a slot. |
 | `theme:Names()` | Array of all configurable slot names. |
 
-Slot names: `bg`, `text`, `gutter`, `cursor`, `selectBg`, `cursorLn`, `statusBg`, `statusTxt`.
+Slot names: `bg`, `text`, `gutter`, `cursor`, `selectBg`, `cursorLn`, `statusBg`, `statusTxt`, `searchBg`, `errorTxt`, `tabBarBg`, `tabBarTxt`, `tabBarActive`.
 
 ### `statusline`
 
@@ -243,6 +243,8 @@ Theme slot: `errorTxt` (default: red).
 Per-tab state (cursor, scroll, undo, settings, search pattern) is preserved when switching.
 
 Default chords (handled in Go, not the keymap registry): `Cmd+T` new tab, `Cmd+W` close tab, `Cmd+PageDown` next tab, `Cmd+PageUp` previous tab.
+
+When more than one tab is open, a tab bar is drawn at the top of the window showing each tab's filename. The active tab is underlined in white; modified tabs show `[+]`.
 
 ## Architecture
 

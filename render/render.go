@@ -110,46 +110,102 @@ func ActiveFont() raylib.Font { return currentFont }
 func ScreenWidth() int  { return int(raylib.GetScreenWidth()) }
 func ScreenHeight() int { return int(raylib.GetScreenHeight()) }
 
-// visibleLines returns how many text lines fit in the content area.
-// Never returns less than 1 so we always draw something.
+const tabBarHeight = FontSize + 4
+
+// visibleLines returns how many text rows fit in the content area.
 func visibleLines() int {
-	statusHeight := FontSize + 4
-	h := ScreenHeight()
-	if h <= statusHeight {
+	h := ScreenHeight() - tabBarHeight
+	if h <= FontSize+4 {
 		return 1
 	}
-	return (h - statusHeight) / FontSize
+	return h / FontSize
 }
 
-func maxScroll(e *editor.Editor) int {
-	vl := visibleLines()
-	ms := len(e.Buffer.Lines) - vl
-	if ms < 0 {
-		ms = 0
+// displayRowOf returns how many display rows precede the given buffer line.
+func displayRowOf(lineIdx int, e *editor.Editor, font raylib.Font) int {
+	gw := gutterWidth(e)
+	maxW := float32(ScreenWidth() - gw)
+	wrapEnabled := e.GetSetting("word_wrap") == true
+	rows := 0
+	for i := 0; i < lineIdx && i < len(e.Buffer.Lines); i++ {
+		if wrapEnabled {
+			rows += len(wrapSegments(e.Buffer.Lines[i], maxW, font))
+		} else {
+			rows++
+		}
 	}
-	return ms
+	return rows
+}
+
+// maxDisplayRows returns total display rows for the buffer.
+func maxDisplayRows(e *editor.Editor, font raylib.Font) int {
+	return displayRowOf(len(e.Buffer.Lines), e, font)
+}
+
+func maxScroll(e *editor.Editor, font raylib.Font) int {
+	vl := visibleLines()
+	total := maxDisplayRows(e, font)
+	if total <= vl {
+		return 0
+	}
+	// binary search for largest ScrollY where displayRowOf(ScrollY) <= total-vl
+	lo, hi := 0, len(e.Buffer.Lines)
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if displayRowOf(mid, e, font) <= total-vl {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return lo
 }
 
 // ClampScroll ensures ScrollY stays within valid bounds.
-func ClampScroll(e *editor.Editor) {
+func ClampScroll(e *editor.Editor, font raylib.Font) {
 	if e.Viewport.ScrollY < 0 {
 		e.Viewport.ScrollY = 0
 	}
-	if e.Viewport.ScrollY > maxScroll(e) {
-		e.Viewport.ScrollY = maxScroll(e)
+	ms := maxScroll(e, font)
+	if e.Viewport.ScrollY > ms {
+		e.Viewport.ScrollY = ms
 	}
 }
 
 // updateScroll adjusts ScrollY so the cursor is always visible.
-func updateScroll(e *editor.Editor) {
+func updateScroll(e *editor.Editor, font raylib.Font) {
 	vl := visibleLines()
-	if e.Cursor.Line < e.Viewport.ScrollY {
+	cursorStart := displayRowOf(e.Cursor.Line, e, font)
+	cursorEnd := cursorStart
+	if e.GetSetting("word_wrap") == true {
+		gw := gutterWidth(e)
+		cursorEnd += len(wrapSegments(e.Buffer.Lines[e.Cursor.Line], float32(ScreenWidth()-gw), font)) - 1
+	}
+
+	firstVisible := displayRowOf(e.Viewport.ScrollY, e, font)
+	lastVisible := firstVisible + vl - 1
+
+	if cursorStart < firstVisible {
 		e.Viewport.ScrollY = e.Cursor.Line
 	}
-	if e.Cursor.Line >= e.Viewport.ScrollY+vl {
-		e.Viewport.ScrollY = e.Cursor.Line - vl + 1
+	if cursorEnd > lastVisible {
+		// Find smallest ScrollY where cursorEnd is visible
+		target := cursorEnd - vl + 1
+		if target < 0 {
+			target = 0
+		}
+		lo, hi := 0, e.Cursor.Line
+		for lo < hi {
+			mid := (lo + hi) / 2
+			if displayRowOf(mid, e, font) >= target {
+				hi = mid
+			} else {
+				lo = mid + 1
+			}
+		}
+		e.Viewport.ScrollY = lo
 	}
-	ClampScroll(e)
+	ClampScroll(e, font)
 }
 
 // drawBottomBar renders the status line (normal mode) or command bar (command mode).
@@ -211,11 +267,14 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int) {
 	statusHeight := FontSize + 4
 	h := ScreenHeight()
-	if h < statusHeight {
+	if h < statusHeight+tabBarHeight {
 		return e.Cursor.Line, e.Cursor.Col
 	}
 	if y >= float32(h-statusHeight) {
 		return e.Cursor.Line, e.Cursor.Col // clicked status bar → ignore
+	}
+	if y < float32(tabBarHeight) {
+		return e.Cursor.Line, e.Cursor.Col // clicked tab bar → ignore
 	}
 
 	gw := gutterWidth(e)
@@ -224,7 +283,7 @@ func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int)
 
 	// Walk from ScrollY, counting wrap segments, until we find the line+segment at y
 	lineIdx := e.Viewport.ScrollY
-	remainingY := y
+	remainingY := y - float32(tabBarHeight)
 	for lineIdx < len(e.Buffer.Lines) && remainingY >= 0 {
 		line := e.Buffer.Lines[lineIdx]
 		var segs [][2]int
@@ -273,7 +332,7 @@ func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int)
 }
 
 func Render(e *editor.Editor, font raylib.Font) {
-	updateScroll(e)
+	updateScroll(e, font)
 
 	raylib.BeginDrawing()
 	raylib.ClearBackground(theme.Get("bg"))
@@ -285,19 +344,43 @@ func Render(e *editor.Editor, font raylib.Font) {
 		currentFont = raylib.Font{}
 	}()
 
-	statusHeight := FontSize + 4
-	contentH := ScreenHeight() - statusHeight
+	// --- tab bar ---
+	if len(e.Tabs) > 1 {
+		raylib.DrawRectangle(0, 0, int32(ScreenWidth()), int32(tabBarHeight), theme.Get("tabBarBg"))
+		penX := float32(4)
+		for i, t := range e.Tabs {
+			name := t.Buffer.FilePath
+			if name == "" {
+				name = "[No Name]"
+			}
+			if t.Buffer.Modified {
+				name = name + " [+]"
+			}
+			label := fmt.Sprintf("%d: %s", i+1, name)
+			color := theme.Get("tabBarTxt")
+			if i == e.ActiveTab {
+				color = theme.Get("tabBarActive")
+				// underline active tab
+				w := raylib.MeasureTextEx(font, label, float32(FontSize), float32(FontSpacing)).X
+				raylib.DrawRectangle(int32(penX), int32(tabBarHeight-2), int32(w), 2, theme.Get("tabBarActive"))
+			}
+			raylib.DrawTextEx(font, label, raylib.Vector2{X: penX, Y: 2}, float32(FontSize), float32(FontSpacing), color)
+			penX += raylib.MeasureTextEx(font, label+"  ", float32(FontSize), float32(FontSpacing)).X
+		}
+	}
+
+	contentH := ScreenHeight() - (FontSize + 4) - tabBarHeight
 	gw := gutterWidth(e)
 	maxW := float32(ScreenWidth() - gw)
 	wrapEnabled := e.GetSetting("word_wrap") == true
 
-	penY := float32(0)
+	penY := float32(tabBarHeight)
 	cursorX := float32(gw)
 	cursorY := float32(0)
 	cursorVisible := false
 
 	lineIdx := e.Viewport.ScrollY
-	for lineIdx < len(e.Buffer.Lines) && penY < float32(contentH) {
+	for lineIdx < len(e.Buffer.Lines) && penY < float32(contentH+tabBarHeight) {
 		line := e.Buffer.Lines[lineIdx]
 		runes := []rune(line)
 

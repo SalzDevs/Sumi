@@ -229,7 +229,7 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 		wheel := raylib.GetMouseWheelMove()
 		if wheel != 0 {
 			e.Viewport.ScrollY -= int(wheel * 3)
-			render.ClampScroll(e)
+			render.ClampScroll(e, font)
 		}
 	}
 
