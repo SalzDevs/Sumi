@@ -117,6 +117,10 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(curTbl, "MoveDown", b.L.NewFunction(b.luaCursorMoveDown))
 	b.L.SetField(edTbl, "Cursor", curTbl)
 
+	// editor settings
+	b.L.SetField(edTbl, "SetSetting", b.L.NewFunction(b.luaEditorSetSetting))
+	b.L.SetField(edTbl, "GetSetting", b.L.NewFunction(b.luaEditorGetSetting))
+
 	b.L.SetGlobal("editor", edTbl)
 
 	b.registerRenderAPI()
@@ -783,6 +787,55 @@ func (b *Bridge) luaCursorMoveDown(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	b.Editor.MoveDown()
 	return 0
+}
+
+func (b *Bridge) luaEditorSetSetting(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	val := L.Get(3)
+
+	switch v := val.(type) {
+	case glua.LBool:
+		b.Editor.SetSetting(name, bool(v))
+	case glua.LNumber:
+		// store as int if it's a whole number, otherwise float64
+		n := float64(v)
+		if n == float64(int64(n)) {
+			b.Editor.SetSetting(name, int(n))
+		} else {
+			b.Editor.SetSetting(name, n)
+		}
+	case glua.LString:
+		b.Editor.SetSetting(name, string(v))
+	case *glua.LNilType:
+		b.Editor.SetSetting(name, nil)
+	default:
+		b.Editor.SetSetting(name, val)
+	}
+	return 0
+}
+
+func (b *Bridge) luaEditorGetSetting(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	val := b.Editor.GetSetting(name)
+	if val == nil {
+		L.Push(glua.LNil)
+		return 1
+	}
+	switch v := val.(type) {
+	case bool:
+		L.Push(glua.LBool(v))
+	case int:
+		L.Push(glua.LNumber(v))
+	case float64:
+		L.Push(glua.LNumber(v))
+	case string:
+		L.Push(glua.LString(v))
+	default:
+		L.Push(glua.LString(fmt.Sprintf("%v", v)))
+	}
+	return 1
 }
 
 // -------------------------------------------------------------------------

@@ -258,7 +258,13 @@ end)
 --     keymap:Register("normal", keys.F5, "insert_timestamp")
 
 -- -------------------------------------------------------------------------
--- Example 10: Invert arrow keys (vim-like or just playful)
+-- Example 10: Buffer-local settings
+-- -------------------------------------------------------------------------
+-- editor:SetSetting("line_numbers", false)   -- hide gutter numbers
+-- editor:SetSetting("cursor_line", false)    -- disable current-line highlight
+
+-- -------------------------------------------------------------------------
+-- Example 11: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

@@ -160,6 +160,20 @@ end)
 keymap:Register("normal", keys.F5, "insert_timestamp")
 ```
 
+### `editor` settings
+
+| Method | Description |
+|---|---|
+| `editor:SetSetting(name, value)` | Store a buffer-local setting. `value` can be boolean, number, string, or `nil`. |
+| `editor:GetSetting(name)` | Retrieve a setting value, or `nil` if unset. |
+
+Supported settings:
+
+| Name | Type | Default | Effect |
+|---|---|---|---|
+| `line_numbers` | bool | `true` | Show line numbers in the gutter. When `false`, gutter shrinks to a thin separator. |
+| `cursor_line` | bool | `true` | Highlight the line the cursor is on. |
+
 ## Architecture
 
 | Layer | Language | Responsibility |

@@ -14,9 +14,17 @@ const (
 	DefaultWidth  = 800
 	DefaultHeight = 400
 	GutterWidth   = 20
+	MinGutter     = 4
 	FontSize      = 20
 	FontSpacing   = 1
 )
+
+func gutterWidth(e *editor.Editor) int {
+	if v := e.GetSetting("line_numbers"); v == false {
+		return MinGutter
+	}
+	return GutterWidth
+}
 
 var (
 	isDrawing   bool
@@ -135,7 +143,7 @@ func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int)
 		line = 0
 	}
 
-	targetX := x - GutterWidth
+	targetX := x - float32(gutterWidth(e))
 	if targetX <= 0 {
 		return line, 0
 	}
@@ -174,20 +182,25 @@ func Render(e *editor.Editor, font raylib.Font) {
 	}
 
 	penY := float32(0)
-	cursorX := float32(GutterWidth)
+	gw := gutterWidth(e)
+	cursorX := float32(gw)
 	cursorY := float32(0)
 	cursorVisible := false
 
 	for lineIdx := startLine; lineIdx < endLine; lineIdx++ {
 		line := e.Buffer.Lines[lineIdx]
-		penX := float32(GutterWidth)
+		penX := float32(gw)
 
 		// gutter number
-		numStr := fmt.Sprintf("%d", lineIdx+1)
-		raylib.DrawTextEx(font, numStr, raylib.Vector2{X: 0, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("gutter"))
+		if v := e.GetSetting("line_numbers"); v != false {
+			numStr := fmt.Sprintf("%d", lineIdx+1)
+			raylib.DrawTextEx(font, numStr, raylib.Vector2{X: 0, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("gutter"))
+		}
 
 		if lineIdx == e.Cursor.Line {
-			raylib.DrawRectangle(int32(GutterWidth), int32(penY), int32(ScreenWidth()-GutterWidth), FontSize, theme.Get("cursorLn"))
+			if v := e.GetSetting("cursor_line"); v != false {
+				raylib.DrawRectangle(int32(gw), int32(penY), int32(ScreenWidth()-gw), FontSize, theme.Get("cursorLn"))
+			}
 		}
 
 		runes := []rune(line)

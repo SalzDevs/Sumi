@@ -73,6 +73,7 @@ type Editor struct {
 	Anchor      LineCol           // visual mode anchor
 	RenderHook  func()            // called during render loop for custom Lua drawing
 	StatusLine  func() (string, string) // returns left and right status text
+	Settings    map[string]interface{}  // buffer-local settings
 }
 
 func NewEditor() *Editor {
@@ -89,6 +90,7 @@ func NewEditor() *Editor {
 		Viewport:    Viewport{ScrollY: 0},
 		UndoStack:   UndoStack{pos: -1},
 		Anchor:      LineCol{-1, -1},
+		Settings:    make(map[string]interface{}),
 	}
 }
 
@@ -103,6 +105,22 @@ func (e *Editor) ModeName() string {
 	default:
 		return "normal"
 	}
+}
+
+// GetSetting returns a buffer-local setting value, or nil if not set.
+func (e *Editor) GetSetting(name string) interface{} {
+	if e.Settings == nil {
+		return nil
+	}
+	return e.Settings[name]
+}
+
+// SetSetting stores a buffer-local setting value.
+func (e *Editor) SetSetting(name string, value interface{}) {
+	if e.Settings == nil {
+		e.Settings = make(map[string]interface{})
+	}
+	e.Settings[name] = value
 }
 
 // NormalizedSelection returns the start and end of the current visual selection,
