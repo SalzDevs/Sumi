@@ -17,12 +17,17 @@ type Cursor struct {
 	DesiredCol int // -1 means unset
 }
 
+type Viewport struct {
+	ScrollY int
+}
+
 type Editor struct {
 	Buffer      *Buffer
 	Cursor      Cursor
 	Mode        int
 	CommandLine string
 	ShouldQuit  bool
+	Viewport    Viewport
 }
 
 func NewEditor() *Editor {
@@ -36,6 +41,7 @@ func NewEditor() *Editor {
 		Mode:        ModeNormal,
 		CommandLine: "",
 		ShouldQuit:  false,
+		Viewport:    Viewport{ScrollY: 0},
 	}
 }
 
