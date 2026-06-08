@@ -1,2 +1,7 @@
 /target/
 test.txt
+sumi
+*.exe
+*.dll
+*.so
+*.dylib

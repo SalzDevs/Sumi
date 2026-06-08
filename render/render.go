@@ -10,18 +10,30 @@ import (
 )
 
 const (
-	ScreenWidth  = 800
-	ScreenHeight = 400
-	GutterWidth  = 20
-	FontSize     = 20
-	FontSpacing  = 1
+	DefaultWidth  = 800
+	DefaultHeight = 400
+	GutterWidth   = 20
+	FontSize      = 20
+	FontSpacing   = 1
 )
 
+func screenW() int {
+	return int(raylib.GetScreenWidth())
+}
+
+func screenH() int {
+	return int(raylib.GetScreenHeight())
+}
+
 // visibleLines returns how many text lines fit in the content area.
+// Never returns less than 1 so we always draw something.
 func visibleLines() int {
 	statusHeight := FontSize + 4
-	contentHeight := ScreenHeight - statusHeight
-	return contentHeight / FontSize
+	h := screenH()
+	if h <= statusHeight {
+		return 1
+	}
+	return (h - statusHeight) / FontSize
 }
 
 func maxScroll(e *editor.Editor) int {
@@ -58,9 +70,13 @@ func updateScroll(e *editor.Editor) {
 // drawBottomBar renders the status line (normal mode) or command bar (command mode).
 func drawBottomBar(e *editor.Editor, font raylib.Font) {
 	statusHeight := FontSize + 4
-	y := ScreenHeight - statusHeight
+	h := screenH()
+	if h < statusHeight {
+		h = statusHeight
+	}
+	y := h - statusHeight
 
-	raylib.DrawRectangle(0, int32(y), ScreenWidth, int32(statusHeight), raylib.LightGray)
+	raylib.DrawRectangle(0, int32(y), int32(screenW()), int32(statusHeight), raylib.LightGray)
 
 	if e.Mode == editor.ModeCommand {
 		prompt := fmt.Sprintf(":%s", e.CommandLine)
@@ -87,7 +103,7 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 
 	// right side
 	rightWidth := raylib.MeasureTextEx(font, right, float32(FontSize), float32(FontSpacing)).X
-	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(ScreenWidth) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), raylib.Black)
+	raylib.DrawTextEx(font, right, raylib.Vector2{X: float32(screenW()) - rightWidth - 4, Y: float32(y) + 2}, float32(FontSize), float32(FontSpacing), raylib.Black)
 }
 
 // Render draws the editor state to the screen.
@@ -95,7 +111,11 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 // Clicking in the gutter clamps to column 0.
 func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int) {
 	statusHeight := FontSize + 4
-	if y >= float32(ScreenHeight-statusHeight) {
+	h := screenH()
+	if h < statusHeight {
+		return e.Cursor.Line, e.Cursor.Col
+	}
+	if y >= float32(h-statusHeight) {
 		return e.Cursor.Line, e.Cursor.Col // clicked status bar → ignore
 	}
 

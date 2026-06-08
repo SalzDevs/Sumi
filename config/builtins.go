@@ -43,6 +43,15 @@ func RegisterBuiltinCommands(r *registry.CommandRegistry) {
 
 	r.Register("q", "Quit the editor", 0, 0,
 		func(e *editor.Editor, args []string) error {
+			if e.Buffer.Modified {
+				return fmt.Errorf("unsaved changes; use :q! to force")
+			}
+			e.ShouldQuit = true
+			return nil
+		})
+
+	r.Register("q!", "Quit without saving", 0, 0,
+		func(e *editor.Editor, args []string) error {
 			e.ShouldQuit = true
 			return nil
 		})

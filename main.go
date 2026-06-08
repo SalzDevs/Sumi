@@ -141,7 +141,9 @@ func main() {
 		_ = ed.LoadFile("./test.txt")
 	}
 
-	raylib.InitWindow(render.ScreenWidth, render.ScreenHeight, "Sumi")
+	raylib.SetConfigFlags(raylib.FlagWindowResizable | raylib.FlagWindowHighdpi)
+	raylib.InitWindow(render.DefaultWidth, render.DefaultHeight, "Sumi")
+	raylib.SetWindowMinSize(400, 200)
 	raylib.SetTargetFPS(60)
 	defer raylib.CloseWindow()
 
