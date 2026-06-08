@@ -22,6 +22,7 @@ var repeatableKeys = map[int32]bool{
 	raylib.KeyUp:        true,
 	raylib.KeyDown:      true,
 	raylib.KeyBackspace: true,
+	raylib.KeyEnter:     true,
 }
 
 var keyTimers = make(map[int32]int)
