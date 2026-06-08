@@ -11,12 +11,55 @@ import (
 	raylib "github.com/gen2brain/raylib-go/raylib"
 )
 
+const (
+	keyDelay  = 30
+	keyRepeat = 2
+)
+
+var repeatableKeys = map[int32]bool{
+	raylib.KeyLeft:      true,
+	raylib.KeyRight:     true,
+	raylib.KeyUp:        true,
+	raylib.KeyDown:      true,
+	raylib.KeyBackspace: true,
+}
+
+var keyTimers = make(map[int32]int)
+
+func shouldFire(key int32) bool {
+	if !raylib.IsKeyDown(key) {
+		keyTimers[key] = 0
+		return false
+	}
+	keyTimers[key]++
+	if keyTimers[key] == 1 {
+		return true
+	}
+	if keyTimers[key] > keyDelay && (keyTimers[key]-keyDelay)%keyRepeat == 0 {
+		return true
+	}
+	return false
+}
+
 func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRegistry) {
 	mode := e.ModeName()
 
-	// --- special keys ---
+	// --- repeatable keys (arrows, backspace) ---
+	for key := range repeatableKeys {
+		if shouldFire(key) {
+			if cmd, ok := keyReg.Resolve(mode, key); ok {
+				_ = cmdReg.Execute(e, cmd, nil)
+			}
+		}
+	}
+
+	// --- one-shot keys (Enter, Escape, etc.) ---
 	key := raylib.GetKeyPressed()
 	for key != 0 {
+		if repeatableKeys[key] {
+			key = raylib.GetKeyPressed()
+			continue
+		}
 		if cmd, ok := keyReg.Resolve(mode, key); ok {
 			_ = cmdReg.Execute(e, cmd, nil)
 		}
