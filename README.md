@@ -277,6 +277,7 @@ utils.say_hello("Sumi")
 | `p` (normal) | Paste |
 | `F3` | Find next match |
 | `F4` | Find previous match |
+| `F5` | Reload `init.lua` and plugins without quitting |
 | `Cmd+R` | Undo |
 | `Cmd+S` | Save |
 | Mouse click | Position cursor |

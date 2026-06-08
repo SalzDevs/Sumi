@@ -1375,6 +1375,19 @@ func (b *Bridge) LoadPlugins() {
 	}
 }
 
+// Reload re-runs all Lua configuration (defaults, user config, plugins)
+// without restarting the editor. Existing commands and keymaps are overwritten.
+func (b *Bridge) Reload() error {
+	if err := b.LoadDefaults(); err != nil {
+		return fmt.Errorf("defaults: %w", err)
+	}
+	if err := b.LoadUserConfig(); err != nil {
+		return fmt.Errorf("user config: %w", err)
+	}
+	b.LoadPlugins()
+	return nil
+}
+
 // Close shuts down the Lua state.
 func (b *Bridge) Close() {
 	b.L.Close()

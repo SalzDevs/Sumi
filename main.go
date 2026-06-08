@@ -272,6 +272,14 @@ func main() {
 
 	bridge.LoadPlugins()
 
+	// Override Lua's reload_config placeholder with the real Go implementation
+	cmdReg.Register("reload_config", "Reload init.lua and plugins", 0, 0, func(e *editor.Editor, args []string) error {
+		if err := bridge.Reload(); err != nil {
+			return err
+		}
+		return nil
+	})
+
 	if len(os.Args) > 1 {
 		_ = ed.LoadFile(os.Args[1])
 	} else {

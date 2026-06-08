@@ -363,6 +363,14 @@ keymap:Register("normal", 47, "enter_search_mode")  -- 47 is ASCII '/'
 --]]
 
 -- -------------------------------------------------------------------------
+-- Reload config without restarting
+-- -------------------------------------------------------------------------
+commands:Register("reload_config", "Reload init.lua and plugins", 0, 0, function(e, args)
+    -- This is a no-op placeholder; the Go side intercepts this command.
+end)
+keymap:Register("normal", keys.F5, "reload_config")
+
+-- -------------------------------------------------------------------------
 -- Example 15: Display a custom error message in the UI
 -- -------------------------------------------------------------------------
 -- commands:Register("warn", "Show a warning", 1, 1, function(e, args)
