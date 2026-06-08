@@ -34,6 +34,55 @@ func searchMatches(text, pattern string) []int {
 	return matches
 }
 
+// -------------------------------------------------------------------------
+// Word wrap helpers
+// -------------------------------------------------------------------------
+
+// wrapSegments splits text into rune ranges [start, end) that fit within maxWidth.
+func wrapSegments(text string, maxWidth float32, font raylib.Font) [][2]int {
+	runes := []rune(text)
+	if len(runes) == 0 {
+		return [][2]int{{0, 0}}
+	}
+	var segs [][2]int
+	segStart := 0
+	penX := float32(0)
+	for i, r := range runes {
+		w := raylib.MeasureTextEx(font, string(r), float32(FontSize), float32(FontSpacing)).X
+		if penX+w > maxWidth && i > segStart {
+			segs = append(segs, [2]int{segStart, i})
+			segStart = i
+			penX = 0
+		}
+		penX += w
+	}
+	segs = append(segs, [2]int{segStart, len(runes)})
+	return segs
+}
+
+// widthOfRange returns the pixel width of runes[start:end] within a text string.
+func widthOfRange(text string, start, end int, font raylib.Font) float32 {
+	runes := []rune(text)
+	if start < 0 {
+		start = 0
+	}
+	if end > len(runes) {
+		end = len(runes)
+	}
+	if end <= start {
+		return 0
+	}
+	return raylib.MeasureTextEx(font, string(runes[start:end]), float32(FontSize), float32(FontSpacing)).X
+}
+
+// countWrapSegments returns how many display lines a buffer line occupies.
+func countWrapSegments(line string, maxWidth float32, font raylib.Font) int {
+	if line == "" {
+		return 1
+	}
+	return len(wrapSegments(line, maxWidth, font))
+}
+
 const (
 	DefaultWidth  = 800
 	DefaultHeight = 400
@@ -158,6 +207,7 @@ func drawBottomBar(e *editor.Editor, font raylib.Font) {
 // Render draws the editor state to the screen.
 // ClickToLineCol translates screen coordinates to a buffer position.
 // Clicking in the gutter clamps to column 0.
+// With word wrap enabled, it accounts for wrapped display segments.
 func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int) {
 	statusHeight := FontSize + 4
 	h := ScreenHeight()
@@ -168,30 +218,58 @@ func ClickToLineCol(x, y float32, e *editor.Editor, font raylib.Font) (int, int)
 		return e.Cursor.Line, e.Cursor.Col // clicked status bar → ignore
 	}
 
-	line := e.Viewport.ScrollY + int(y/FontSize)
-	if line >= len(e.Buffer.Lines) {
-		line = len(e.Buffer.Lines) - 1
-	}
-	if line < 0 {
-		line = 0
-	}
+	gw := gutterWidth(e)
+	maxW := float32(ScreenWidth() - gw)
+	wrapEnabled := e.GetSetting("word_wrap") == true
 
-	targetX := x - float32(gutterWidth(e))
-	if targetX <= 0 {
-		return line, 0
-	}
-
-	runes := []rune(e.Buffer.Lines[line])
-	penX := float32(0)
-	for col, r := range runes {
-		chStr := string(r)
-		glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
-		if penX+glyphW/2 > targetX {
-			return line, col
+	// Walk from ScrollY, counting wrap segments, until we find the line+segment at y
+	lineIdx := e.Viewport.ScrollY
+	remainingY := y
+	for lineIdx < len(e.Buffer.Lines) && remainingY >= 0 {
+		line := e.Buffer.Lines[lineIdx]
+		var segs [][2]int
+		if wrapEnabled {
+			segs = wrapSegments(line, maxW, font)
+		} else {
+			segs = [][2]int{{0, len([]rune(line))}}
 		}
-		penX += glyphW
+		segH := float32(len(segs)) * float32(FontSize)
+		if remainingY < segH {
+			// y falls inside this line; find which segment
+			segIdx := int(remainingY / float32(FontSize))
+			if segIdx >= len(segs) {
+				segIdx = len(segs) - 1
+			}
+			seg := segs[segIdx]
+			targetX := x - float32(gw)
+			if targetX <= 0 {
+				return lineIdx, seg[0]
+			}
+			runes := []rune(line)
+			penX := float32(0)
+			for col := seg[0]; col < seg[1] && col < len(runes); col++ {
+				chStr := string(runes[col])
+				glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
+				if penX+glyphW/2 > targetX {
+					return lineIdx, col
+				}
+				penX += glyphW
+			}
+			return lineIdx, seg[1]
+		}
+		remainingY -= segH
+		lineIdx++
 	}
-	return line, len(runes)
+
+	// fell off the bottom — clamp to last line
+	if lineIdx >= len(e.Buffer.Lines) {
+		lineIdx = len(e.Buffer.Lines) - 1
+	}
+	if lineIdx < 0 {
+		lineIdx = 0
+	}
+	runes := []rune(e.Buffer.Lines[lineIdx])
+	return lineIdx, len(runes)
 }
 
 func Render(e *editor.Editor, font raylib.Font) {
@@ -207,38 +285,51 @@ func Render(e *editor.Editor, font raylib.Font) {
 		currentFont = raylib.Font{}
 	}()
 
-	vl := visibleLines()
-	startLine := e.Viewport.ScrollY
-	endLine := startLine + vl
-	if endLine > len(e.Buffer.Lines) {
-		endLine = len(e.Buffer.Lines)
-	}
+	statusHeight := FontSize + 4
+	contentH := ScreenHeight() - statusHeight
+	gw := gutterWidth(e)
+	maxW := float32(ScreenWidth() - gw)
+	wrapEnabled := e.GetSetting("word_wrap") == true
 
 	penY := float32(0)
-	gw := gutterWidth(e)
 	cursorX := float32(gw)
 	cursorY := float32(0)
 	cursorVisible := false
 
-	for lineIdx := startLine; lineIdx < endLine; lineIdx++ {
+	lineIdx := e.Viewport.ScrollY
+	for lineIdx < len(e.Buffer.Lines) && penY < float32(contentH) {
 		line := e.Buffer.Lines[lineIdx]
-		penX := float32(gw)
+		runes := []rune(line)
 
-		// gutter number
+		// compute wrap segments
+		var segs [][2]int
+		if wrapEnabled {
+			segs = wrapSegments(line, maxW, font)
+		} else {
+			segs = [][2]int{{0, len(runes)}}
+		}
+
+		// gutter number (drawn once, at first segment's Y)
 		if v := e.GetSetting("line_numbers"); v != false {
 			numStr := fmt.Sprintf("%d", lineIdx+1)
 			raylib.DrawTextEx(font, numStr, raylib.Vector2{X: 0, Y: penY}, float32(FontSize), float32(FontSpacing), theme.Get("gutter"))
 		}
 
+		// cursor-line background for every segment
 		if lineIdx == e.Cursor.Line {
 			if v := e.GetSetting("cursor_line"); v != false {
-				raylib.DrawRectangle(int32(gw), int32(penY), int32(ScreenWidth()-gw), FontSize, theme.Get("cursorLn"))
+				for segIdx, seg := range segs {
+					sy := penY + float32(segIdx)*float32(FontSize)
+					sw := widthOfRange(line, seg[0], seg[1], font)
+					if sw < 1 {
+						sw = float32(ScreenWidth() - gw)
+					}
+					raylib.DrawRectangle(int32(gw), int32(sy), int32(sw)+2, FontSize, theme.Get("cursorLn"))
+				}
 			}
 		}
 
-		runes := []rune(line)
-
-		// Build per-character color array for this line
+		// Build per-character color array
 		lineColors := make([]raylib.Color, len(runes))
 		for i := range lineColors {
 			lineColors[i] = theme.Get("text")
@@ -260,48 +351,61 @@ func Render(e *editor.Editor, font raylib.Font) {
 			}
 		}
 
-		// Draw search match backgrounds (behind text, on top of normal background)
-		if e.SearchPattern != "" {
-			for _, matchStart := range searchMatches(line, e.SearchPattern) {
-				matchEnd := matchStart + len([]rune(e.SearchPattern))
-				if matchEnd > len(runes) {
-					matchEnd = len(runes)
-				}
-				// Measure pixel width of the match
-				matchX := penX
-				for i := 0; i < matchStart; i++ {
-					matchX += raylib.MeasureTextEx(font, string(runes[i]), float32(FontSize), float32(FontSpacing)).X
-				}
-				matchW := float32(0)
-				for i := matchStart; i < matchEnd && i < len(runes); i++ {
-					matchW += raylib.MeasureTextEx(font, string(runes[i]), float32(FontSize), float32(FontSpacing)).X
-				}
-				raylib.DrawRectangle(int32(matchX), int32(penY), int32(matchW), FontSize, theme.Get("searchBg"))
-			}
-		}
+		// Draw each segment
+		for segIdx, seg := range segs {
+			segY := penY + float32(segIdx)*float32(FontSize)
+			segX := float32(gw)
 
-		for col, r := range runes {
-			if lineIdx == e.Cursor.Line && col == e.Cursor.Col {
-				cursorX = penX
-				cursorY = penY
+			// search highlights inside this segment
+			if e.SearchPattern != "" {
+				for _, matchStart := range searchMatches(line, e.SearchPattern) {
+					matchEnd := matchStart + len([]rune(e.SearchPattern))
+					if matchEnd > len(runes) {
+						matchEnd = len(runes)
+					}
+					// only draw if overlap with this segment
+					if matchEnd <= seg[0] || matchStart >= seg[1] {
+						continue
+					}
+					clipStart := matchStart
+					if clipStart < seg[0] {
+						clipStart = seg[0]
+					}
+					clipEnd := matchEnd
+					if clipEnd > seg[1] {
+						clipEnd = seg[1]
+					}
+					mx := segX + widthOfRange(line, seg[0], clipStart, font)
+					mw := widthOfRange(line, clipStart, clipEnd, font)
+					raylib.DrawRectangle(int32(mx), int32(segY), int32(mw), FontSize, theme.Get("searchBg"))
+				}
+			}
+
+			// characters inside this segment
+			for col := seg[0]; col < seg[1] && col < len(runes); col++ {
+				if lineIdx == e.Cursor.Line && col == e.Cursor.Col {
+					cursorX = segX
+					cursorY = segY
+					cursorVisible = true
+				}
+				chStr := string(runes[col])
+				glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
+				if e.IsSelected(lineIdx, col) {
+					raylib.DrawRectangle(int32(segX), int32(segY), int32(glyphW), FontSize, theme.Get("selectBg"))
+				}
+				raylib.DrawTextEx(font, chStr, raylib.Vector2{X: segX, Y: segY}, float32(FontSize), float32(FontSpacing), lineColors[col])
+				segX += glyphW
+			}
+
+			if lineIdx == e.Cursor.Line && e.Cursor.Col == len(runes) && segIdx == len(segs)-1 {
+				cursorX = segX
+				cursorY = segY
 				cursorVisible = true
 			}
-			chStr := string(r)
-			glyphW := raylib.MeasureTextEx(font, chStr, float32(FontSize), float32(FontSpacing)).X
-			if e.IsSelected(lineIdx, col) {
-				raylib.DrawRectangle(int32(penX), int32(penY), int32(glyphW), FontSize, theme.Get("selectBg"))
-			}
-			raylib.DrawTextEx(font, chStr, raylib.Vector2{X: penX, Y: penY}, float32(FontSize), float32(FontSpacing), lineColors[col])
-			penX += glyphW
 		}
 
-		if lineIdx == e.Cursor.Line && e.Cursor.Col == len(runes) {
-			cursorX = penX
-			cursorY = penY
-			cursorVisible = true
-		}
-
-		penY += float32(FontSize)
+		penY += float32(len(segs)) * float32(FontSize)
+		lineIdx++
 	}
 
 	// cursor

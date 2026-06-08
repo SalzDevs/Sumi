@@ -179,6 +179,7 @@ Supported settings:
 |---|---|---|---|
 | `line_numbers` | bool | `true` | Show line numbers in the gutter. When `false`, gutter shrinks to a thin separator. |
 | `cursor_line` | bool | `true` | Highlight the line the cursor is on. |
+| `word_wrap` | bool | `false` | Soft-wrap long lines at the screen edge. |
 
 ### `events`
 

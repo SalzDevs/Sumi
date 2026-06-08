@@ -262,6 +262,7 @@ end)
 -- -------------------------------------------------------------------------
 -- editor:SetSetting("line_numbers", false)   -- hide gutter numbers
 -- editor:SetSetting("cursor_line", false)    -- disable current-line highlight
+-- editor:SetSetting("word_wrap", true)       -- soft-wrap long lines at screen edge
 
 -- -------------------------------------------------------------------------
 -- Example 11: Event hooks — react to editor state changes
