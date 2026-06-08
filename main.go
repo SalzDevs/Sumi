@@ -6,6 +6,7 @@ import (
 
 	"sumi/config"
 	"sumi/editor"
+	"sumi/lua"
 	"sumi/registry"
 	"sumi/render"
 
@@ -132,8 +133,21 @@ func main() {
 	cmdReg := registry.NewCommandRegistry()
 	keyReg := registry.NewKeymapRegistry()
 
+	// Register all built-in commands in Go
 	config.RegisterBuiltinCommands(cmdReg)
-	config.RegisterBuiltinKeymaps(keyReg)
+
+	// Load Lua configuration layer
+	bridge := lua.NewBridge(ed, cmdReg, keyReg)
+	defer bridge.Close()
+
+	if err := bridge.LoadDefaults(); err != nil {
+		fmt.Fprintf(os.Stderr, "Lua default config failed: %v\n", err)
+		lua.FallbackKeymaps(keyReg)
+	}
+
+	if err := bridge.LoadUserConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "Lua user config failed: %v\n", err)
+	}
 
 	if len(os.Args) > 1 {
 		_ = ed.LoadFile(os.Args[1])
