@@ -91,16 +91,21 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 			e.CommandLine += string(rune(ch))
 		case editor.ModeVisual:
 			switch ch {
-			case 'v':
-				_ = cmdReg.Execute(e, "cancel_visual", nil)
 			case 'd':
 				_ = cmdReg.Execute(e, "visual_delete", nil)
+			case 'y':
+				_ = cmdReg.Execute(e, "yank", nil)
 			}
 		default: // normal mode
-			if ch == ':' {
+			switch ch {
+			case ':':
 				_ = cmdReg.Execute(e, "enter_command_mode", nil)
-			} else if ch >= 32 && ch < 127 {
-				e.InsertChar(rune(ch))
+			case 'p':
+				_ = cmdReg.Execute(e, "paste", nil)
+			default:
+				if ch >= 32 && ch < 127 {
+					e.InsertChar(rune(ch))
+				}
 			}
 		}
 		ch = raylib.GetCharPressed()

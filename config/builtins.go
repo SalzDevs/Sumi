@@ -155,6 +155,17 @@ func RegisterBuiltinCommands(r *registry.CommandRegistry) {
 			e.DeleteSelection()
 			return nil
 		})
+
+	r.Register("yank", "Copy selection to clipboard", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			return e.Yank()
+		})
+
+	r.Register("paste", "Paste clipboard at cursor", 0, 0,
+		func(e *editor.Editor, args []string) error {
+			e.Paste()
+			return nil
+		})
 }
 
 func RegisterBuiltinKeymaps(k *registry.KeymapRegistry) {
