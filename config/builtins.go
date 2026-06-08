@@ -13,7 +13,7 @@ import (
 func executeCommandLine(e *editor.Editor, r *registry.CommandRegistry) {
 	input := strings.TrimSpace(e.CommandLine)
 	if input == "" {
-		e.Mode = editor.ModeNormal
+		e.SetMode(editor.ModeNormal)
 		return
 	}
 
@@ -29,7 +29,7 @@ func executeCommandLine(e *editor.Editor, r *registry.CommandRegistry) {
 	}
 
 	e.CommandLine = ""
-	e.Mode = editor.ModeNormal
+	e.SetMode(editor.ModeNormal)
 }
 
 // RegisterBuiltinCommands registers the minimal set of commands that must

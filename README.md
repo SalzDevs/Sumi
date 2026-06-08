@@ -175,6 +175,22 @@ Supported settings:
 | `line_numbers` | bool | `true` | Show line numbers in the gutter. When `false`, gutter shrinks to a thin separator. |
 | `cursor_line` | bool | `true` | Highlight the line the cursor is on. |
 
+### `events`
+
+| Method | Description |
+|---|---|
+| `events:Register(name, fn)` | Register a Lua function to be called when an event fires. |
+| `events:Unregister(name, fn?)` | Remove a specific handler, or all handlers for an event if `fn` is omitted. |
+
+Event names:
+
+| Name | When it fires | Arguments passed to handler |
+|---|---|---|
+| `file_open` | After a file is loaded | `(path)` |
+| `save` | After a file is saved | `(path)` |
+| `mode_change` | After the editor mode changes | `(mode_name)` e.g. `"normal"`, `"command"`, `"visual"` |
+| `buffer_change` | After any buffer mutation (insert, delete, paste, undo, etc.) | none |
+
 ## Architecture
 
 | Layer | Language | Responsibility |

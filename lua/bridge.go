@@ -21,25 +21,28 @@ var defaultLua string
 
 // Bridge connects the Go engine to the Lua configuration layer.
 type Bridge struct {
-	L            *glua.LState
-	Editor       *editor.Editor
-	CmdReg       *registry.CommandRegistry
-	KeyReg       *registry.KeymapRegistry
+	L             *glua.LState
+	Editor        *editor.Editor
+	CmdReg        *registry.CommandRegistry
+	KeyReg        *registry.KeymapRegistry
 	luaCmds       map[string]*glua.LFunction // command name → Lua handler
 	renderHookFn  *glua.LFunction
 	statuslineFn  *glua.LFunction
+	eventHandlers map[string][]*glua.LFunction
 }
 
 // NewBridge creates a Lua state and exposes the editor API.
 func NewBridge(ed *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRegistry) *Bridge {
 	L := glua.NewState()
 	b := &Bridge{
-		L:       L,
-		Editor:  ed,
-		CmdReg:  cmdReg,
-		KeyReg:  keyReg,
-		luaCmds: make(map[string]*glua.LFunction),
+		L:             L,
+		Editor:        ed,
+		CmdReg:        cmdReg,
+		KeyReg:        keyReg,
+		luaCmds:       make(map[string]*glua.LFunction),
+		eventHandlers: make(map[string][]*glua.LFunction),
 	}
+	ed.EventDispatcher = b.dispatchEvent
 	b.registerAPI()
 	return b
 }
@@ -127,6 +130,7 @@ func (b *Bridge) registerAPI() {
 	b.registerRenderAPI()
 	b.registerThemeAPI()
 	b.registerStatuslineAPI()
+	b.registerEventsAPI()
 }
 
 // -------------------------------------------------------------------------
@@ -232,11 +236,11 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 		mode := L.CheckString(2)
 		switch mode {
 		case "normal":
-			e.Mode = editor.ModeNormal
+			e.SetMode(editor.ModeNormal)
 		case "command":
-			e.Mode = editor.ModeCommand
+			e.SetMode(editor.ModeCommand)
 		case "visual":
-			e.Mode = editor.ModeVisual
+			e.SetMode(editor.ModeVisual)
 		}
 		return 0
 	}))
@@ -307,7 +311,7 @@ func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 
 	b.L.SetField(edTbl, "EnterVisual", b.L.NewFunction(func(L *glua.LState) int {
 		_ = L.CheckAny(1)
-		e.Mode = editor.ModeVisual
+		e.SetMode(editor.ModeVisual)
 		e.SetVisualAnchor()
 		return 0
 	}))
@@ -517,11 +521,11 @@ func (b *Bridge) luaEditorSetMode(L *glua.LState) int {
 	mode := L.CheckString(2)
 	switch mode {
 	case "normal":
-		b.Editor.Mode = editor.ModeNormal
+		b.Editor.SetMode(editor.ModeNormal)
 	case "command":
-		b.Editor.Mode = editor.ModeCommand
+		b.Editor.SetMode(editor.ModeCommand)
 	case "visual":
-		b.Editor.Mode = editor.ModeVisual
+		b.Editor.SetMode(editor.ModeVisual)
 	}
 	return 0
 }
@@ -592,7 +596,7 @@ func (b *Bridge) luaEditorQuit(L *glua.LState) int {
 
 func (b *Bridge) luaEditorEnterVisual(L *glua.LState) int {
 	_ = L.CheckAny(1)
-	b.Editor.Mode = editor.ModeVisual
+	b.Editor.SetMode(editor.ModeVisual)
 	b.Editor.SetVisualAnchor()
 	return 0
 }
@@ -1089,6 +1093,71 @@ func (b *Bridge) luaStatuslineSet(L *glua.LState) int {
 }
 
 // -------------------------------------------------------------------------
+// Events API
+// -------------------------------------------------------------------------
+
+func (b *Bridge) registerEventsAPI() {
+	eventsTbl := b.L.NewTable()
+	b.L.SetField(eventsTbl, "Register", b.L.NewFunction(b.luaEventsRegister))
+	b.L.SetField(eventsTbl, "Unregister", b.L.NewFunction(b.luaEventsUnregister))
+	b.L.SetGlobal("events", eventsTbl)
+}
+
+func (b *Bridge) dispatchEvent(name string, args ...interface{}) {
+	handlers := b.eventHandlers[name]
+	if len(handlers) == 0 {
+		return
+	}
+	for _, fn := range handlers {
+		b.L.Push(fn)
+		nArgs := len(args)
+		for _, arg := range args {
+			switch v := arg.(type) {
+			case string:
+				b.L.Push(glua.LString(v))
+			case int:
+				b.L.Push(glua.LNumber(v))
+			case bool:
+				b.L.Push(glua.LBool(v))
+			case float64:
+				b.L.Push(glua.LNumber(v))
+			default:
+				b.L.Push(glua.LString(fmt.Sprintf("%v", v)))
+			}
+		}
+		if err := b.L.PCall(nArgs, 0, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "event %s error: %v\n", name, err)
+		}
+	}
+}
+
+func (b *Bridge) luaEventsRegister(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	fn := L.CheckFunction(3)
+	b.eventHandlers[name] = append(b.eventHandlers[name], fn)
+	return 0
+}
+
+func (b *Bridge) luaEventsUnregister(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	name := L.CheckString(2)
+	if L.GetTop() >= 3 {
+		fn := L.CheckFunction(3)
+		filtered := b.eventHandlers[name][:0]
+		for _, h := range b.eventHandlers[name] {
+			if h != fn {
+				filtered = append(filtered, h)
+			}
+		}
+		b.eventHandlers[name] = filtered
+	} else {
+		delete(b.eventHandlers, name)
+	}
+	return 0
+}
+
+// -------------------------------------------------------------------------
 // Config loading
 // -------------------------------------------------------------------------
 
@@ -1160,8 +1229,8 @@ func FallbackKeymaps(cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRe
 	cmdReg.Register("insert_newline", "Insert newline", 0, 0, func(e *editor.Editor, args []string) error { e.InsertNewline(); return nil })
 
 	// Mode commands
-	cmdReg.Register("enter_command_mode", "Enter command mode", 0, 0, func(e *editor.Editor, args []string) error { e.Mode = editor.ModeCommand; return nil })
-	cmdReg.Register("cancel_command", "Cancel command mode", 0, 0, func(e *editor.Editor, args []string) error { e.CommandLine = ""; e.Mode = editor.ModeNormal; return nil })
+	cmdReg.Register("enter_command_mode", "Enter command mode", 0, 0, func(e *editor.Editor, args []string) error { e.SetMode(editor.ModeCommand); return nil })
+	cmdReg.Register("cancel_command", "Cancel command mode", 0, 0, func(e *editor.Editor, args []string) error { e.CommandLine = ""; e.SetMode(editor.ModeNormal); return nil })
 	cmdReg.Register("command_backspace", "Delete last command character", 0, 0, func(e *editor.Editor, args []string) error {
 		if len(e.CommandLine) > 0 {
 			runes := []rune(e.CommandLine)
@@ -1169,7 +1238,7 @@ func FallbackKeymaps(cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRe
 		}
 		return nil
 	})
-	cmdReg.Register("enter_visual_mode", "Enter visual mode", 0, 0, func(e *editor.Editor, args []string) error { e.Mode = editor.ModeVisual; e.SetVisualAnchor(); return nil })
+	cmdReg.Register("enter_visual_mode", "Enter visual mode", 0, 0, func(e *editor.Editor, args []string) error { e.SetMode(editor.ModeVisual); e.SetVisualAnchor(); return nil })
 	cmdReg.Register("cancel_visual", "Cancel visual mode", 0, 0, func(e *editor.Editor, args []string) error { e.ClearVisual(); return nil })
 
 	// File commands

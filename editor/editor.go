@@ -74,6 +74,7 @@ type Editor struct {
 	RenderHook  func()            // called during render loop for custom Lua drawing
 	StatusLine  func() (string, string) // returns left and right status text
 	Settings    map[string]interface{}  // buffer-local settings
+	EventDispatcher func(name string, args ...interface{}) // called by core to fire Lua events
 }
 
 func NewEditor() *Editor {
@@ -104,6 +105,24 @@ func (e *Editor) ModeName() string {
 		return "visual"
 	default:
 		return "normal"
+	}
+}
+
+// SetMode changes the editor mode and fires the "mode_change" event.
+func (e *Editor) SetMode(mode int) {
+	if e.Mode == mode {
+		return
+	}
+	e.Mode = mode
+	if e.EventDispatcher != nil {
+		e.EventDispatcher("mode_change", e.ModeName())
+	}
+}
+
+// DispatchEvent fires a named event through the dispatcher if present.
+func (e *Editor) DispatchEvent(name string, args ...interface{}) {
+	if e.EventDispatcher != nil {
+		e.EventDispatcher(name, args...)
 	}
 }
 
@@ -165,7 +184,7 @@ func (e *Editor) IsSelected(line, col int) bool {
 
 // ClearVisual cancels visual mode and clears the anchor.
 func (e *Editor) ClearVisual() {
-	e.Mode = ModeNormal
+	e.SetMode(ModeNormal)
 	e.Anchor = LineCol{-1, -1}
 }
 
@@ -182,7 +201,7 @@ func (e *Editor) SelectWordAt(line, col int) {
 	}
 	runes := []rune(e.Buffer.Lines[line])
 	if len(runes) == 0 {
-		e.Mode = ModeVisual
+		e.SetMode(ModeVisual)
 		e.Anchor = LineCol{Line: line, Col: 0}
 		e.Cursor.Line = line
 		e.Cursor.Col = 0
@@ -214,7 +233,7 @@ func (e *Editor) SelectWordAt(line, col int) {
 		end = col
 	}
 
-	e.Mode = ModeVisual
+	e.SetMode(ModeVisual)
 	e.Anchor = LineCol{Line: line, Col: start}
 	e.Cursor.Line = line
 	e.Cursor.Col = end
@@ -226,7 +245,7 @@ func (e *Editor) SelectLineAt(line int) {
 		return
 	}
 	runes := []rune(e.Buffer.Lines[line])
-	e.Mode = ModeVisual
+	e.SetMode(ModeVisual)
 	e.Anchor = LineCol{Line: line, Col: 0}
 	e.Cursor.Line = line
 	if len(runes) > 0 {
@@ -321,6 +340,7 @@ func (e *Editor) Paste() {
 			CursorBefore: cursorBefore,
 			CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 		})
+		e.DispatchEvent("buffer_change")
 		return
 	}
 
@@ -343,4 +363,5 @@ func (e *Editor) Paste() {
 		CursorBefore: cursorBefore,
 		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 	})
+	e.DispatchEvent("buffer_change")
 }

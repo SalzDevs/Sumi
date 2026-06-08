@@ -166,7 +166,7 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 					e.Cursor.Line = line
 					e.Cursor.Col = col
 					e.SetVisualAnchor()
-					e.Mode = editor.ModeVisual
+					e.SetMode(editor.ModeVisual)
 				}
 			}
 			if isDragging {
@@ -187,7 +187,7 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 			line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
 			if e.Mode != editor.ModeVisual {
 				e.SetVisualAnchor()
-				e.Mode = editor.ModeVisual
+				e.SetMode(editor.ModeVisual)
 			}
 			e.Cursor.Line = line
 			e.Cursor.Col = col

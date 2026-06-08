@@ -71,6 +71,7 @@ func (e *Editor) InsertChar(ch rune) {
 		CursorBefore: cursorBefore,
 		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 	})
+	e.DispatchEvent("buffer_change")
 }
 
 func (e *Editor) InsertNewline() {
@@ -95,6 +96,7 @@ func (e *Editor) InsertNewline() {
 		CursorBefore: cursorBefore,
 		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 	})
+	e.DispatchEvent("buffer_change")
 }
 
 func (e *Editor) Backspace() {
@@ -115,6 +117,7 @@ func (e *Editor) Backspace() {
 			CursorBefore: cursorBefore,
 			CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 		})
+		e.DispatchEvent("buffer_change")
 		return
 	}
 	if e.Cursor.Line == 0 {
@@ -139,6 +142,7 @@ func (e *Editor) Backspace() {
 		CursorBefore: cursorBefore,
 		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 	})
+	e.DispatchEvent("buffer_change")
 }
 
 // applyEdit replaces lines at StartLine with the given slice.
@@ -159,6 +163,7 @@ func (e *Editor) Undo() {
 	e.Cursor.Line = edit.CursorBefore.Line
 	e.Cursor.Col = edit.CursorBefore.Col
 	e.Buffer.Modified = true
+	e.DispatchEvent("buffer_change")
 }
 
 // DeleteSelection removes the current visual selection and returns to normal mode.
@@ -223,4 +228,5 @@ func (e *Editor) DeleteSelection() {
 		CursorBefore: cursorBefore,
 		CursorAfter:  LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col},
 	})
+	e.DispatchEvent("buffer_change")
 }

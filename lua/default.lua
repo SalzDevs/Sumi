@@ -264,7 +264,24 @@ end)
 -- editor:SetSetting("cursor_line", false)    -- disable current-line highlight
 
 -- -------------------------------------------------------------------------
--- Example 11: Invert arrow keys (vim-like or just playful)
+-- Example 11: Event hooks — react to editor state changes
+-- -------------------------------------------------------------------------
+--[[
+events:Register("file_open", function(path)
+    print("Opened: " .. path)
+end)
+
+events:Register("mode_change", function(mode)
+    print("Mode changed to: " .. mode)
+end)
+
+events:Register("buffer_change", function()
+    -- Track unsaved changes, update lint, etc.
+end)
+--]]
+
+-- -------------------------------------------------------------------------
+-- Example 12: Invert arrow keys (vim-like or just playful)
 -- -------------------------------------------------------------------------
 -- keymap:Register("normal", keys.LEFT, "move_right")
 -- keymap:Register("normal", keys.RIGHT, "move_left")

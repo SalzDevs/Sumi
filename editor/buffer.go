@@ -33,6 +33,7 @@ func (e *Editor) LoadFile(path string) error {
 	e.Cursor.Line = 0
 	e.Cursor.Col = 0
 	e.Cursor.DesiredCol = -1
+	e.DispatchEvent("file_open", path)
 	return nil
 }
 
@@ -46,5 +47,6 @@ func (e *Editor) SaveFile() error {
 		fmt.Fprintln(f, line)
 	}
 	e.Buffer.Modified = false
+	e.DispatchEvent("save", e.Buffer.FilePath)
 	return nil
 }
