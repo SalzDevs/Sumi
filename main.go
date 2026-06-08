@@ -29,12 +29,19 @@ var repeatableKeys = map[int32]bool{
 
 var keyTimers = make(map[int32]int)
 
+// Neovim-style mouse state
 var (
-	dragStartX     float32
-	dragStartY     float32
-	isDragging     bool
-	dragThreshold  = float32(3.0)
+	lastClickTime float64
+	lastClickLine int
+	lastClickCol  int
+	clickCount    int
+	isMouseDown   bool
+	dragStartX    float32
+	dragStartY    float32
+	isDragging    bool
 )
+
+const clickTimeout = 0.4 // seconds, same as Neovim mousetime
 
 func shouldFire(key int32) bool {
 	if !raylib.IsKeyDown(key) {
@@ -92,47 +99,101 @@ func handleInput(e *editor.Editor, cmdReg *registry.CommandRegistry, keyReg *reg
 		key = raylib.GetKeyPressed()
 	}
 
-	// --- mouse ---
+	// --- mouse (Neovim-style) ---
 	if e.Mode != editor.ModeCommand {
+		now := raylib.GetTime()
+
+		// Left click / drag / double-click / triple-click
 		if raylib.IsMouseButtonPressed(raylib.MouseLeftButton) {
 			pos := raylib.GetMousePosition()
-			dragStartX = pos.X
-			dragStartY = pos.Y
-			isDragging = false
+			line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
+
+			// Detect double/triple click
+			isRepeat := (now-lastClickTime < clickTimeout) && (line == lastClickLine) && (col == lastClickCol)
+			if isRepeat {
+				clickCount++
+			} else {
+				clickCount = 1
+			}
+			lastClickTime = now
+			lastClickLine = line
+			lastClickCol = col
+
+			switch clickCount {
+			case 1:
+				// Single click: move cursor. In visual mode, this extends selection.
+				if e.Mode == editor.ModeVisual {
+					e.Cursor.Line = line
+					e.Cursor.Col = col
+				} else {
+					e.Cursor.Line = line
+					e.Cursor.Col = col
+					e.ClearVisual()
+				}
+				// Start drag tracking
+				isMouseDown = true
+				dragStartX = pos.X
+				dragStartY = pos.Y
+				isDragging = false
+			case 2:
+				// Double click: select word
+				e.SelectWordAt(line, col)
+				isMouseDown = true
+				dragStartX = pos.X
+				dragStartY = pos.Y
+				isDragging = false
+			case 3:
+				// Triple click: select line
+				e.SelectLineAt(line)
+				clickCount = 0 // reset for next sequence
+				isMouseDown = true
+				dragStartX = pos.X
+				dragStartY = pos.Y
+				isDragging = false
+			}
 		}
 
-		if raylib.IsMouseButtonDown(raylib.MouseLeftButton) {
+		// Drag: extend selection
+		if isMouseDown && raylib.IsMouseButtonDown(raylib.MouseLeftButton) {
 			pos := raylib.GetMousePosition()
 			dx := pos.X - dragStartX
 			dy := pos.Y - dragStartY
-			distSq := dx*dx + dy*dy
-
-			if !isDragging && distSq > dragThreshold*dragThreshold {
+			if !isDragging && (dx*dx+dy*dy > 9) { // 3px threshold
 				isDragging = true
-				// Enter visual mode at drag start
-				line, col := render.ClickToLineCol(dragStartX, dragStartY, e, font)
-				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
 				if e.Mode != editor.ModeVisual {
-					_ = cmdReg.Execute(e, "enter_visual_mode", nil)
+					// Enter visual mode at drag start position
+					line, col := render.ClickToLineCol(dragStartX, dragStartY, e, font)
+					e.Cursor.Line = line
+					e.Cursor.Col = col
+					e.SetVisualAnchor()
+					e.Mode = editor.ModeVisual
 				}
 			}
-
 			if isDragging {
 				line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
-				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
+				e.Cursor.Line = line
+				e.Cursor.Col = col
 			}
 		}
 
 		if raylib.IsMouseButtonReleased(raylib.MouseLeftButton) {
-			if !isDragging {
-				// Simple click: just move cursor
-				pos := raylib.GetMousePosition()
-				line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
-				_ = cmdReg.Execute(e, "goto_position", []string{fmt.Sprintf("%d", line), fmt.Sprintf("%d", col)})
-			}
+			isMouseDown = false
 			isDragging = false
 		}
 
+		// Right click: extend selection to click point
+		if raylib.IsMouseButtonPressed(raylib.MouseRightButton) {
+			pos := raylib.GetMousePosition()
+			line, col := render.ClickToLineCol(pos.X, pos.Y, e, font)
+			if e.Mode != editor.ModeVisual {
+				e.SetVisualAnchor()
+				e.Mode = editor.ModeVisual
+			}
+			e.Cursor.Line = line
+			e.Cursor.Col = col
+		}
+
+		// Scroll wheel
 		wheel := raylib.GetMouseWheelMove()
 		if wheel != 0 {
 			e.Viewport.ScrollY -= int(wheel * 3)

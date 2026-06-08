@@ -154,6 +154,68 @@ func (e *Editor) SetVisualAnchor() {
 	e.Anchor = LineCol{Line: e.Cursor.Line, Col: e.Cursor.Col}
 }
 
+// SelectWordAt enters visual mode and selects the word at (line, col).
+// Word chars: [a-zA-Z0-9_]. If on a non-word char, selects that single char.
+func (e *Editor) SelectWordAt(line, col int) {
+	if line < 0 || line >= len(e.Buffer.Lines) {
+		return
+	}
+	runes := []rune(e.Buffer.Lines[line])
+	if len(runes) == 0 {
+		e.Mode = ModeVisual
+		e.Anchor = LineCol{Line: line, Col: 0}
+		e.Cursor.Line = line
+		e.Cursor.Col = 0
+		return
+	}
+	if col < 0 {
+		col = 0
+	}
+	if col >= len(runes) {
+		col = len(runes) - 1
+	}
+
+	isWord := func(r rune) bool {
+		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_'
+	}
+
+	start := col
+	for start > 0 && isWord(runes[start-1]) {
+		start--
+	}
+	end := col
+	for end < len(runes)-1 && isWord(runes[end+1]) {
+		end++
+	}
+
+	// If the char at col is not a word char, select just that char
+	if !isWord(runes[col]) {
+		start = col
+		end = col
+	}
+
+	e.Mode = ModeVisual
+	e.Anchor = LineCol{Line: line, Col: start}
+	e.Cursor.Line = line
+	e.Cursor.Col = end
+}
+
+// SelectLineAt enters visual mode and selects the entire line.
+func (e *Editor) SelectLineAt(line int) {
+	if line < 0 || line >= len(e.Buffer.Lines) {
+		return
+	}
+	runes := []rune(e.Buffer.Lines[line])
+	e.Mode = ModeVisual
+	e.Anchor = LineCol{Line: line, Col: 0}
+	e.Cursor.Line = line
+	if len(runes) > 0 {
+		e.Cursor.Col = len(runes) - 1
+	} else {
+		e.Cursor.Col = 0
+	}
+}
+
 func (e *Editor) ResetDesired() {
 	e.Cursor.DesiredCol = -1
 }
