@@ -65,13 +65,21 @@ func (b *Bridge) registerAPI() {
 	// editor table (live mutable API)
 	edTbl := b.L.NewTable()
 	b.L.SetField(edTbl, "Mode", b.L.NewFunction(b.luaEditorMode))
+	b.L.SetField(edTbl, "SetMode", b.L.NewFunction(b.luaEditorSetMode))
 	b.L.SetField(edTbl, "LineCount", b.L.NewFunction(b.luaEditorLineCount))
+	b.L.SetField(edTbl, "Modified", b.L.NewFunction(b.luaEditorModified))
+	b.L.SetField(edTbl, "CommandLine", b.L.NewFunction(b.luaEditorCommandLine))
+	b.L.SetField(edTbl, "SetCommandLine", b.L.NewFunction(b.luaEditorSetCommandLine))
+	b.L.SetField(edTbl, "CommandLineBackspace", b.L.NewFunction(b.luaEditorCommandLineBackspace))
 	b.L.SetField(edTbl, "LoadFile", b.L.NewFunction(b.luaEditorLoadFile))
 	b.L.SetField(edTbl, "SaveFile", b.L.NewFunction(b.luaEditorSaveFile))
 	b.L.SetField(edTbl, "Undo", b.L.NewFunction(b.luaEditorUndo))
 	b.L.SetField(edTbl, "Quit", b.L.NewFunction(b.luaEditorQuit))
 	b.L.SetField(edTbl, "EnterVisual", b.L.NewFunction(b.luaEditorEnterVisual))
 	b.L.SetField(edTbl, "ClearVisual", b.L.NewFunction(b.luaEditorClearVisual))
+	b.L.SetField(edTbl, "SetVisualAnchor", b.L.NewFunction(b.luaEditorSetVisualAnchor))
+	b.L.SetField(edTbl, "SelectWordAt", b.L.NewFunction(b.luaEditorSelectWordAt))
+	b.L.SetField(edTbl, "SelectLineAt", b.L.NewFunction(b.luaEditorSelectLineAt))
 
 	// editor.Buffer
 	bufTbl := b.L.NewTable()
@@ -81,6 +89,14 @@ func (b *Bridge) registerAPI() {
 	b.L.SetField(bufTbl, "InsertChar", b.L.NewFunction(b.luaBufferInsertChar))
 	b.L.SetField(bufTbl, "DeleteChar", b.L.NewFunction(b.luaBufferDeleteChar))
 	b.L.SetField(edTbl, "Buffer", bufTbl)
+
+	// editor editing
+	b.L.SetField(edTbl, "Backspace", b.L.NewFunction(b.luaEditorBackspace))
+	b.L.SetField(edTbl, "InsertNewline", b.L.NewFunction(b.luaEditorInsertNewline))
+	b.L.SetField(edTbl, "InsertChar", b.L.NewFunction(b.luaEditorInsertChar))
+	b.L.SetField(edTbl, "Yank", b.L.NewFunction(b.luaEditorYank))
+	b.L.SetField(edTbl, "Paste", b.L.NewFunction(b.luaEditorPaste))
+	b.L.SetField(edTbl, "DeleteSelection", b.L.NewFunction(b.luaEditorDeleteSelection))
 
 	// editor.Cursor
 	curTbl := b.L.NewTable()
@@ -135,7 +151,7 @@ func (b *Bridge) callLuaCommand(name string, e *editor.Editor, args []string) er
 	}
 
 	b.L.Push(fn)
-	b.pushEditorAPI(e)
+	b.pushEditorProxy(e)
 
 	argsTbl := b.L.NewTable()
 	for i, arg := range args {
@@ -171,31 +187,146 @@ func (b *Bridge) luaCommandList(L *glua.LState) int {
 }
 
 // -------------------------------------------------------------------------
-// editor helpers
+// pushEditorProxy — comprehensive proxy passed to Lua command handlers
 // -------------------------------------------------------------------------
 
-func (b *Bridge) pushEditorAPI(e *editor.Editor) {
-	// Build a lightweight editor proxy for the current editor instance.
-	// This is used when calling Lua-registered command handlers.
+func (b *Bridge) pushEditorProxy(e *editor.Editor) {
 	edTbl := b.L.NewTable()
-	b.L.SetField(edTbl, "Mode", glua.LString(func() string {
-		switch e.Mode {
-		case editor.ModeNormal:
-			return "normal"
-		case editor.ModeCommand:
-			return "command"
-		case editor.ModeVisual:
-			return "visual"
-		default:
-			return "normal"
-		}
-	}()))
-	b.L.SetField(edTbl, "LineCount", glua.LNumber(len(e.Buffer.Lines)))
 
+	b.L.SetField(edTbl, "Mode", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LString(func() string {
+			switch e.Mode {
+			case editor.ModeNormal:
+				return "normal"
+			case editor.ModeCommand:
+				return "command"
+			case editor.ModeVisual:
+				return "visual"
+			default:
+				return "normal"
+			}
+		}()))
+		return 1
+	}))
+
+	b.L.SetField(edTbl, "SetMode", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		mode := L.CheckString(2)
+		switch mode {
+		case "normal":
+			e.Mode = editor.ModeNormal
+		case "command":
+			e.Mode = editor.ModeCommand
+		case "visual":
+			e.Mode = editor.ModeVisual
+		}
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "LineCount", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LNumber(len(e.Buffer.Lines)))
+		return 1
+	}))
+
+	b.L.SetField(edTbl, "Modified", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LBool(e.Buffer.Modified))
+		return 1
+	}))
+
+	b.L.SetField(edTbl, "CommandLine", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		L.Push(glua.LString(e.CommandLine))
+		return 1
+	}))
+
+	b.L.SetField(edTbl, "SetCommandLine", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.CommandLine = L.CheckString(2)
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "CommandLineBackspace", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		if len(e.CommandLine) > 0 {
+			runes := []rune(e.CommandLine)
+			e.CommandLine = string(runes[:len(runes)-1])
+		}
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "LoadFile", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		path := L.CheckString(2)
+		if err := e.LoadFile(path); err != nil {
+			L.Push(glua.LString(err.Error()))
+			return 1
+		}
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "SaveFile", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		if err := e.SaveFile(); err != nil {
+			L.Push(glua.LString(err.Error()))
+			return 1
+		}
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "Undo", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.Undo()
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "Quit", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.ShouldQuit = true
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "EnterVisual", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.Mode = editor.ModeVisual
+		e.SetVisualAnchor()
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "ClearVisual", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.ClearVisual()
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "SetVisualAnchor", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.SetVisualAnchor()
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "SelectWordAt", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		line := L.CheckInt(2) - 1
+		col := L.CheckInt(3) - 1
+		e.SelectWordAt(line, col)
+		return 0
+	}))
+
+	b.L.SetField(edTbl, "SelectLineAt", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		line := L.CheckInt(2) - 1
+		e.SelectLineAt(line)
+		return 0
+	}))
+
+	// Buffer
 	bufTbl := b.L.NewTable()
 	b.L.SetField(bufTbl, "GetLine", b.L.NewFunction(func(L *glua.LState) int {
 		_ = L.CheckAny(1)
-		n := L.CheckInt(2) - 1 // 1-based → 0-based
+		n := L.CheckInt(2) - 1
 		if n < 0 || n >= len(e.Buffer.Lines) {
 			L.Push(glua.LString(""))
 		} else {
@@ -251,6 +382,45 @@ func (b *Bridge) pushEditorAPI(e *editor.Editor) {
 	}))
 	b.L.SetField(edTbl, "Buffer", bufTbl)
 
+	// Editing methods
+	b.L.SetField(edTbl, "Backspace", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.Backspace()
+		return 0
+	}))
+	b.L.SetField(edTbl, "InsertNewline", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.InsertNewline()
+		return 0
+	}))
+	b.L.SetField(edTbl, "InsertChar", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		ch := L.CheckString(2)
+		if len(ch) > 0 {
+			e.InsertChar(rune(ch[0]))
+		}
+		return 0
+	}))
+	b.L.SetField(edTbl, "Yank", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		if err := e.Yank(); err != nil {
+			L.Push(glua.LString(err.Error()))
+			return 1
+		}
+		return 0
+	}))
+	b.L.SetField(edTbl, "Paste", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.Paste()
+		return 0
+	}))
+	b.L.SetField(edTbl, "DeleteSelection", b.L.NewFunction(func(L *glua.LState) int {
+		_ = L.CheckAny(1)
+		e.DeleteSelection()
+		return 0
+	}))
+
+	// Cursor
 	curTbl := b.L.NewTable()
 	b.L.SetField(curTbl, "Line", b.L.NewFunction(func(L *glua.LState) int {
 		_ = L.CheckAny(1)
@@ -311,7 +481,7 @@ func (b *Bridge) pushEditorAPI(e *editor.Editor) {
 }
 
 // -------------------------------------------------------------------------
-// editor methods (for the global editor table, bound at startup)
+// editor methods (global table)
 // -------------------------------------------------------------------------
 
 func (b *Bridge) luaEditorMode(L *glua.LState) int {
@@ -320,10 +490,51 @@ func (b *Bridge) luaEditorMode(L *glua.LState) int {
 	return 1
 }
 
+func (b *Bridge) luaEditorSetMode(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	mode := L.CheckString(2)
+	switch mode {
+	case "normal":
+		b.Editor.Mode = editor.ModeNormal
+	case "command":
+		b.Editor.Mode = editor.ModeCommand
+	case "visual":
+		b.Editor.Mode = editor.ModeVisual
+	}
+	return 0
+}
+
 func (b *Bridge) luaEditorLineCount(L *glua.LState) int {
 	_ = L.CheckAny(1)
 	L.Push(glua.LNumber(len(b.Editor.Buffer.Lines)))
 	return 1
+}
+
+func (b *Bridge) luaEditorModified(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LBool(b.Editor.Buffer.Modified))
+	return 1
+}
+
+func (b *Bridge) luaEditorCommandLine(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	L.Push(glua.LString(b.Editor.CommandLine))
+	return 1
+}
+
+func (b *Bridge) luaEditorSetCommandLine(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.CommandLine = L.CheckString(2)
+	return 0
+}
+
+func (b *Bridge) luaEditorCommandLineBackspace(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	if len(b.Editor.CommandLine) > 0 {
+		runes := []rune(b.Editor.CommandLine)
+		b.Editor.CommandLine = string(runes[:len(runes)-1])
+	}
+	return 0
 }
 
 func (b *Bridge) luaEditorLoadFile(L *glua.LState) int {
@@ -370,8 +581,71 @@ func (b *Bridge) luaEditorClearVisual(L *glua.LState) int {
 	return 0
 }
 
+func (b *Bridge) luaEditorSetVisualAnchor(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.SetVisualAnchor()
+	return 0
+}
+
+func (b *Bridge) luaEditorSelectWordAt(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	line := L.CheckInt(2) - 1
+	col := L.CheckInt(3) - 1
+	b.Editor.SelectWordAt(line, col)
+	return 0
+}
+
+func (b *Bridge) luaEditorSelectLineAt(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	line := L.CheckInt(2) - 1
+	b.Editor.SelectLineAt(line)
+	return 0
+}
+
+func (b *Bridge) luaEditorBackspace(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.Backspace()
+	return 0
+}
+
+func (b *Bridge) luaEditorInsertNewline(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.InsertNewline()
+	return 0
+}
+
+func (b *Bridge) luaEditorInsertChar(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	ch := L.CheckString(2)
+	if len(ch) > 0 {
+		b.Editor.InsertChar(rune(ch[0]))
+	}
+	return 0
+}
+
+func (b *Bridge) luaEditorYank(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	if err := b.Editor.Yank(); err != nil {
+		L.Push(glua.LString(err.Error()))
+		return 1
+	}
+	return 0
+}
+
+func (b *Bridge) luaEditorPaste(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.Paste()
+	return 0
+}
+
+func (b *Bridge) luaEditorDeleteSelection(L *glua.LState) int {
+	_ = L.CheckAny(1)
+	b.Editor.DeleteSelection()
+	return 0
+}
+
 // -------------------------------------------------------------------------
-// Buffer methods (for the global editor.Buffer table)
+// Buffer methods (global table)
 // -------------------------------------------------------------------------
 
 func (b *Bridge) luaBufferGetLine(L *glua.LState) int {
@@ -526,9 +800,65 @@ func (b *Bridge) Close() {
 	b.L.Close()
 }
 
-// FallbackKeymaps registers Go keymaps when Lua loading fails.
-func FallbackKeymaps(keyReg *registry.KeymapRegistry) {
-	fmt.Fprintln(os.Stderr, "Lua config failed; falling back to built-in keymaps")
+// FallbackKeymaps bootstraps a minimal editor when Lua loading fails.
+// It registers both commands and keymaps in Go so the editor is usable
+// even if the Lua runtime is broken.
+func FallbackKeymaps(cmdReg *registry.CommandRegistry, keyReg *registry.KeymapRegistry) {
+	fmt.Fprintln(os.Stderr, "Lua config failed; falling back to built-in defaults")
+
+	// Movement commands
+	cmdReg.Register("move_left", "Move cursor left", 0, 0, func(e *editor.Editor, args []string) error { e.MoveLeft(); return nil })
+	cmdReg.Register("move_right", "Move cursor right", 0, 0, func(e *editor.Editor, args []string) error { e.MoveRight(); return nil })
+	cmdReg.Register("move_up", "Move cursor up", 0, 0, func(e *editor.Editor, args []string) error { e.MoveUp(); return nil })
+	cmdReg.Register("move_down", "Move cursor down", 0, 0, func(e *editor.Editor, args []string) error { e.MoveDown(); return nil })
+
+	// Edit commands
+	cmdReg.Register("backspace", "Delete character before cursor", 0, 0, func(e *editor.Editor, args []string) error { e.Backspace(); return nil })
+	cmdReg.Register("insert_newline", "Insert newline", 0, 0, func(e *editor.Editor, args []string) error { e.InsertNewline(); return nil })
+
+	// Mode commands
+	cmdReg.Register("enter_command_mode", "Enter command mode", 0, 0, func(e *editor.Editor, args []string) error { e.Mode = editor.ModeCommand; return nil })
+	cmdReg.Register("cancel_command", "Cancel command mode", 0, 0, func(e *editor.Editor, args []string) error { e.CommandLine = ""; e.Mode = editor.ModeNormal; return nil })
+	cmdReg.Register("command_backspace", "Delete last command character", 0, 0, func(e *editor.Editor, args []string) error {
+		if len(e.CommandLine) > 0 {
+			runes := []rune(e.CommandLine)
+			e.CommandLine = string(runes[:len(runes)-1])
+		}
+		return nil
+	})
+	cmdReg.Register("enter_visual_mode", "Enter visual mode", 0, 0, func(e *editor.Editor, args []string) error { e.Mode = editor.ModeVisual; e.SetVisualAnchor(); return nil })
+	cmdReg.Register("cancel_visual", "Cancel visual mode", 0, 0, func(e *editor.Editor, args []string) error { e.ClearVisual(); return nil })
+
+	// File commands
+	cmdReg.Register("w", "Save the current file", 0, 0, func(e *editor.Editor, args []string) error { return e.SaveFile() })
+	cmdReg.Register("q", "Quit the editor", 0, 0, func(e *editor.Editor, args []string) error {
+		if e.Buffer.Modified {
+			return fmt.Errorf("unsaved changes; use :q! to force")
+		}
+		e.ShouldQuit = true
+		return nil
+	})
+	cmdReg.Register("q!", "Quit without saving", 0, 0, func(e *editor.Editor, args []string) error { e.ShouldQuit = true; return nil })
+	cmdReg.Register("wq", "Save and quit", 0, 0, func(e *editor.Editor, args []string) error {
+		if err := e.SaveFile(); err != nil {
+			return err
+		}
+		if !e.Buffer.Modified {
+			e.ShouldQuit = true
+		}
+		return nil
+	})
+	cmdReg.Register("e", "Open a file", 1, 1, func(e *editor.Editor, args []string) error { return e.LoadFile(args[0]) })
+
+	// Undo
+	cmdReg.Register("undo", "Undo last change", 0, 0, func(e *editor.Editor, args []string) error { e.Undo(); return nil })
+
+	// Visual commands
+	cmdReg.Register("visual_delete", "Delete visual selection", 0, 0, func(e *editor.Editor, args []string) error { e.DeleteSelection(); return nil })
+	cmdReg.Register("yank", "Copy selection to clipboard", 0, 0, func(e *editor.Editor, args []string) error { return e.Yank() })
+	cmdReg.Register("paste", "Paste clipboard at cursor", 0, 0, func(e *editor.Editor, args []string) error { e.Paste(); return nil })
+
+	// Keymaps
 	keyReg.Register("normal", 262, "move_right")
 	keyReg.Register("normal", 263, "move_left")
 	keyReg.Register("normal", 264, "move_down")

@@ -243,7 +243,7 @@ func main() {
 
 	if err := bridge.LoadDefaults(); err != nil {
 		fmt.Fprintf(os.Stderr, "Lua default config failed: %v\n", err)
-		lua.FallbackKeymaps(keyReg)
+		lua.FallbackKeymaps(cmdReg, keyReg)
 	}
 
 	if err := bridge.LoadUserConfig(); err != nil {
