@@ -15,11 +15,27 @@ func executeCommandLine(e *editor.Editor, r *registry.CommandRegistry) {
 		return
 	}
 
-	parts := strings.Fields(input)
-	cmdName := parts[0]
+	// Pre-process s/pat/repl/ and %s/pat/repl/ substitute syntax
+	cmdName := ""
 	var args []string
-	if len(parts) > 1 {
-		args = parts[1:]
+
+	if strings.HasPrefix(input, "s/") {
+		pat, repl, all := parseSubstitute(input[2:])
+		cmdName = "s"
+		args = []string{pat, repl}
+		if all {
+			cmdName = "sg"
+		}
+	} else if strings.HasPrefix(input, "%s/") {
+		pat, repl, _ := parseSubstitute(input[3:])
+		cmdName = "%s"
+		args = []string{pat, repl}
+	} else {
+		parts := strings.Fields(input)
+		cmdName = parts[0]
+		if len(parts) > 1 {
+			args = parts[1:]
+		}
 	}
 
 	if err := r.Execute(e, cmdName, args); err != nil {
@@ -28,6 +44,25 @@ func executeCommandLine(e *editor.Editor, r *registry.CommandRegistry) {
 
 	e.CommandLine = ""
 	e.SetMode(editor.ModeNormal)
+}
+
+// parseSubstitute extracts pattern and replacement from "pat/repl/flags".
+// Returns (pattern, replacement, allFlag).
+func parseSubstitute(s string) (string, string, bool) {
+	idx := strings.Index(s, "/")
+	if idx < 0 {
+		return s, "", false
+	}
+	pat := s[:idx]
+	rest := s[idx+1:]
+	idx = strings.Index(rest, "/")
+	if idx < 0 {
+		return pat, rest, false
+	}
+	repl := rest[:idx]
+	flags := rest[idx+1:]
+	all := strings.Contains(flags, "g")
+	return pat, repl, all
 }
 
 // RegisterBuiltinCommands registers the minimal set of commands that must

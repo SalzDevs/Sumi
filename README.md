@@ -307,6 +307,9 @@ utils.say_hello("Sumi")
 | `p` (normal) | Paste |
 | `F3` | Find next match |
 | `F4` | Find previous match |
+| `:s/old/new/` | Replace first match on current line |
+| `:s/old/new/g` | Replace all matches on current line |
+| `:%s/old/new/` | Replace all matches in entire buffer |
 | `F5` | Reload `init.lua` and plugins without quitting |
 | `Cmd+T` | New blank tab |
 | `Cmd+W` | Close current tab |

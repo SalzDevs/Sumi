@@ -399,6 +399,42 @@ end)
 -- and do not go through the keymap registry.
 
 -- -------------------------------------------------------------------------
+-- Search and replace commands
+-- -------------------------------------------------------------------------
+commands:Register("s", "Replace first match on current line", 2, 2, function(e, args)
+    local line = e.Buffer:GetLine(e.Cursor:Line())
+    local newLine, count = line:gsub(args[1], args[2], 1)
+    if count == 0 then
+        return "pattern not found"
+    end
+    e.Buffer:SetLine(e.Cursor:Line(), newLine)
+end)
+
+commands:Register("sg", "Replace all matches on current line", 2, 2, function(e, args)
+    local line = e.Buffer:GetLine(e.Cursor:Line())
+    local newLine, count = line:gsub(args[1], args[2])
+    if count == 0 then
+        return "pattern not found"
+    end
+    e.Buffer:SetLine(e.Cursor:Line(), newLine)
+end)
+
+commands:Register("%s", "Replace all matches in buffer", 2, 2, function(e, args)
+    local total = 0
+    for i = 1, e:LineCount() do
+        local line = e.Buffer:GetLine(i)
+        local newLine, count = line:gsub(args[1], args[2])
+        if count > 0 then
+            e.Buffer:SetLine(i, newLine)
+            total = total + count
+        end
+    end
+    if total == 0 then
+        return "pattern not found"
+    end
+end)
+
+-- -------------------------------------------------------------------------
 -- Example 15: Display a custom error message in the UI
 -- -------------------------------------------------------------------------
 -- commands:Register("warn", "Show a warning", 1, 1, function(e, args)
